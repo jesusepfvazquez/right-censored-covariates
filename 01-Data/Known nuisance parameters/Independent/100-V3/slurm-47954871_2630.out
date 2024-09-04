@@ -1,0 +1,28 @@
+SLURM_JOBID:  47964703
+SLURM_ARRAY_TASK_ID:  2630
+SLURM_ARRAY_JOB_ID:  47954871
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: ‘geex’
+
+The following object is masked from ‘package:methods’:
+
+    show
+
+[1] 100
+[1] 0.52
+[1] "starting acc"
+[1] "starting macc"
+Error in integrate(function(y) { : the integral is probably divergent
+Calls: estimate_beta_macc ... v.area_num -> do.call -> mapply -> <Anonymous> -> integrate
+Execution halted

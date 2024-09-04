@@ -1,0 +1,33 @@
+SLURM_JOBID:  39543618
+SLURM_ARRAY_TASK_ID:  619
+SLURM_ARRAY_JOB_ID:  39542290
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: ‘geex’
+
+The following object is masked from ‘package:methods’:
+
+    show
+
+[1] 1000
+Maximizing -- use negfn and neggr
+[1] "starting mle"
+1492.95 sec elapsed
+$beta_est
+                                 psi_updated
+[1,] 0.9861321 1.878736 2.962295   0.9129551
+
+$se_est
+           [,1]       [,2]       [,3]
+[1,] 0.04188678 0.04505633 0.03166293
+

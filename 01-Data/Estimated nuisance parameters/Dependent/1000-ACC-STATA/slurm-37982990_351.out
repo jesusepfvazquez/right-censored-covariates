@@ -1,0 +1,248 @@
+SLURM_JOBID:  37983367
+SLURM_ARRAY_TASK_ID:  351
+SLURM_ARRAY_JOB_ID:  37982990
+[?1h=
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      18.0
+___/   /   /___/   /   /___/       SE—Standard Edition
+
+ Statistics and Data Science       Copyright 1985-2023 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-STATA-PC        https://www.stata.com
+                                   979-696-4600        stata@stata.com
+
+Stata license: 125-user network, expiring 23 Jul 2024
+Serial number: 401809304040
+  Licensed to: UNC-CH
+               Chapel Hill NC
+
+Notes:
+      1. Unicode is supported; see help unicode_advice.
+      2. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do "main2.do" 351 
+
+. // jesus vazquez
+. // 04/18/2024
+. 
+. clear
+
+. import delimited "acc_example_stata.csv"
+(encoding automatically selected: ISO-8859-2)
+(6 vars, 1,001,000 obs)
+
+. 
+. keep if sim == `1'
+(1,000,000 observations deleted)
+
+. gen mysim`1' = 0
+
+. 
+. // gen imp1 = rnormal(0,1)
+. // gen imp2 = rnormal(0,1)
+. // gen imp3 = rnormal(0,1)
+. // gen imp4 = rnormal(0,1)
+. // gen imp5 = rnormal(0,1)
+. // gen imp6 = rnormal(0,1)
+. // gen imp7 = rnormal(0,1)
+. // gen imp8 = rnormal(0,1)
+. // gen imp9 = rnormal(0,1)
+. // gen imp10 = rnormal(0,1)
+. // gen imp11 = rnormal(0,1)
+. // gen imp12 = rnormal(0,1)
+. // gen imp13 = rnormal(0,1)
+. // gen imp14 = rnormal(0,1)
+. // gen imp15 = rnormal(0,1)
+. // gen imp16 = rnormal(0,1)
+. // gen imp17 = rnormal(0,1)
+. // gen imp18 = rnormal(0,1)
+. // gen imp19 = rnormal(0,1)
+. // gen imp20 = rnormal(0,1)
+. // gen imp21 = rnormal(0,1)
+. // gen imp22 = rnormal(0,1)
+. // gen imp23 = rnormal(0,1)
+. // gen imp24 = rnormal(0,1)
+. // gen imp25 = rnormal(0,1)
+. // gen imp26 = rnormal(0,1)
+. // gen imp27 = rnormal(0,1)
+. // gen imp28 = rnormal(0,1)
+. // gen imp29 = rnormal(0,1)
+. // gen imp30 = rnormal(0,1)
+. //
+. // // correct weight 
+. // augcca z, y(y) x(xmiss) imps(imp1-imp30) pivars(y z) mysim(mysim`1')
+. //
+. // // incorrect weight specification
+. // augcca z, y(y) x(xmiss) imps(imp1-imp30) pivars(z) mysim(mysim`1')
+. 
+. // incorrect augmentation
+. gen imp31 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp32 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp33 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp34 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp35 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp36 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp37 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp38 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp39 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp40 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp41 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp42 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp43 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp44 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp45 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp46 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp47 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp48 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp49 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp50 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp51 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp52 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp53 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp54 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp55 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp56 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp57 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp58 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp59 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. gen imp60 = rnormal(0,0.9) + 0.88 + 0.20*z + 0.20*y
+
+. 
+. // correct weight 
+. augcca z, y(y) x(xmiss) imps(imp31-imp60) pivars(y z) mysim(mysim`1')
+Missingness model
+
+Logistic regression                                     Number of obs =  1,000
+                                                        LR chi2(2)    = 215.61
+                                                        Prob > chi2   = 0.0000
+Log likelihood = -585.34134                             Pseudo R2     = 0.1555
+
+------------------------------------------------------------------------------
+        my_r | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+           y |   1.169475   .0834118     2.19   0.028     1.016903    1.344937
+           z |   2.530695   .2047019    11.48   0.000     2.159674    2.965456
+       _cons |   .6449249   .0507059    -5.58   0.000     .5528219    .7523727
+------------------------------------------------------------------------------
+Note: _cons estimates baseline odds.
+Complete case analysis
+
+      Source |       SS           df       MS      Number of obs   =       499
+-------------+----------------------------------   F(2, 496)       =     32.63
+       Model |  60.8724078         2  30.4362039   Prob > F        =    0.0000
+    Residual |  462.694332       496  .932851475   R-squared       =    0.1163
+-------------+----------------------------------   Adj R-squared   =    0.1127
+       Total |  523.566739       498  1.05133883   Root MSE        =    .96584
+
+------------------------------------------------------------------------------
+           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       xmiss |   .1966629   .0448413     4.39   0.000     .1085606    .2847651
+           z |    .241077   .0457928     5.26   0.000     .1511052    .3310488
+       _cons |  -.0244947    .068705    -0.36   0.722    -.1594833     .110494
+------------------------------------------------------------------------------
+Augmented complete case analysis
+Iteration 0:  f(p) = -1.6134968  
+Iteration 1:  f(p) = -4.413e-06  
+Iteration 2:  f(p) = -2.945e-11  
+Iteration 3:  f(p) = -1.996e-16  
+file augacc_y z_mysim351.xlsx saved
+file augacc_y z_mysim351.xlsx saved
+------------------------------------------------------------------------------
+             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       xmiss |   .1998195     .04206     4.75   0.000     .1173834    .2822557
+           z |   .2409663    .037099     6.50   0.000     .1682535    .3136791
+       _cons |  -.0297558   .0635336    -0.47   0.640    -.1542794    .0947677
+------------------------------------------------------------------------------
+
+. 
+. // incorrect weight specification
+. augcca z, y(y) x(xmiss) imps(imp31-imp60) pivars(z) mysim(mysim`1')
+Missingness model
+
+Logistic regression                                     Number of obs =  1,000
+                                                        LR chi2(1)    = 210.76
+                                                        Prob > chi2   = 0.0000
+Log likelihood = -587.76755                             Pseudo R2     = 0.1520
+
+------------------------------------------------------------------------------
+        my_r | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+           z |   2.662333   .2074794    12.56   0.000     2.285215    3.101685
+       _cons |   .6491703   .0507969    -5.52   0.000     .5568689    .7567707
+------------------------------------------------------------------------------
+Note: _cons estimates baseline odds.
+Complete case analysis
+
+      Source |       SS           df       MS      Number of obs   =       499
+-------------+----------------------------------   F(2, 496)       =     32.63
+       Model |  60.8724078         2  30.4362039   Prob > F        =    0.0000
+    Residual |  462.694332       496  .932851475   R-squared       =    0.1163
+-------------+----------------------------------   Adj R-squared   =    0.1127
+       Total |  523.566739       498  1.05133883   Root MSE        =    .96584
+
+------------------------------------------------------------------------------
+           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       xmiss |   .1966629   .0448413     4.39   0.000     .1085606    .2847651
+           z |    .241077   .0457928     5.26   0.000     .1511052    .3310488
+       _cons |  -.0244947    .068705    -0.36   0.722    -.1594833     .110494
+------------------------------------------------------------------------------
+Augmented complete case analysis
+Iteration 0:  f(p) = -1596.0346  
+Iteration 1:  f(p) = -.27110663  
+Iteration 2:  f(p) =  -.0000449  
+Iteration 3:  f(p) = -7.651e-09  
+Iteration 4:  f(p) = -1.267e-12  
+file augacc_z_mysim351.xlsx saved
+file augacc_z_mysim351.xlsx saved
+------------------------------------------------------------------------------
+             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       xmiss |   .1981681   .0421649     4.70   0.000     .1155265    .2808098
+           z |   .2701277   .0344466     7.84   0.000     .2026135    .3376419
+       _cons |  -.1105028   .0504852    -2.19   0.029    -.2094519   -.0115537
+------------------------------------------------------------------------------
+
+. 
+. 
+. 
+. 
+. 
+end of do-file
+
+
+. [?1l>

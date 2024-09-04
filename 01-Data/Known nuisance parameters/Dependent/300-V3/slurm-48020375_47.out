@@ -1,0 +1,28 @@
+SLURM_JOBID:  48020424
+SLURM_ARRAY_TASK_ID:  47
+SLURM_ARRAY_JOB_ID:  48020375
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: ‘geex’
+
+The following object is masked from ‘package:methods’:
+
+    show
+
+[1] 300
+[1] 0.4633333
+[1] "starting acc"
+[1] "starting macc"
+[1] "starting aipw"
+[1] "starting mle"
+2114.089 sec elapsed

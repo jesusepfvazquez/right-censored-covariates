@@ -1,0 +1,30 @@
+SLURM_JOBID:  48058453
+SLURM_ARRAY_TASK_ID:  878
+SLURM_ARRAY_JOB_ID:  48020521
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: ‘geex’
+
+The following object is masked from ‘package:methods’:
+
+    show
+
+[1] 300
+[1] 0.55
+[1] "starting acc"
+[1] "starting macc"
+[1] "starting aipw"
+[1] "starting mle"
+Warning message:
+In stode(y, times, func, parms = parms, ...) : steady-state not reached
+3224.547 sec elapsed

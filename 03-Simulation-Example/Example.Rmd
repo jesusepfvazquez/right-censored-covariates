@@ -1,0 +1,1441 @@
+---
+title: "Establishing the Parallels and Difference between Right-Censored and Missing Covariates"
+subtitle: "Simulation Tutorial"
+author: "Jesus E. Vazquez"
+date: "`r Sys.Date()`"
+output:
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    number_sections: yes
+    toc_float:
+      collapsed: yes
+  # theme: united
+  # pdf_document: default
+---
+
+```{r setup, include=FALSE}
+# Clear the environment
+rm(list = ls())
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load custom functions
+source("../01-Data/helper_data.R") # Data generating function
+source("../02-MEstimate/helper_mestimate.R") # M-estimating equation functions
+
+# Load required packages
+library(dplyr)
+library(geex)
+library(tictoc)
+library(ggplot2)
+library(tictoc)
+library(latex2exp)
+library(rmarkdown)
+library(readxl)
+library(tidyverse)
+
+# define functions
+`%!in%` = Negate(`%in%`)
+```
+
+# Introduction
+
+In this tutorial, you will learn how, under the presence of a right censored covariance, we can simulate data and estimate the linear regression parameters as discussed in the paper "**Establishing the Parallels and Differences Between Right-Censored and Missing Covariates"** found here [Link](google.com). More specifically, in this tutorial you will health how to use the `data_mvn()` function to generate data and estimate the parameters of interest using the complete case (CC), inverse probability weighting (IPW), maximum likelihood (MLE), augmented CC (ACC), modified ACC (MACC), or/and the augmented IPW (AIPW) estimator.
+
+Throughout, we are interested in the linear regression model
+
+$$
+y_i = \beta_0 + \beta_1 (A_i-X_i) + \beta_2 Z_i + \epsilon_i
+$$
+
+where $y_i$ represents the outcome, $A_i$ the current age, $X_i$ the age at diagnosis, $A_i - X_i$ the time to clinical diagnosis, $Z_i$ the fully observed covariate, and $\epsilon_i \sim N(0,\sigma^2)$ . The data also provides $W_i = min (X_i,C_i)$ where $C_i$ is the random right-censoring variable, and $W_i$ is the observed event time. The variable $D_i = I(X_i \leq C_i)$ is equal to $1$ if the observed event time is equal to age at clinical diagnosis, and $0$ if otherwise. The objective is to estimate The goal is to estimate $\theta = (\beta_0, \beta_1, \beta_2, \sigma)$ using the observed data $O = (Y,W,\Delta,Z)$. We refer the reader to the **Supplementary Material Section S.5** for the exact details of the data simulation process, as well as the main paper for more details of the estimators and their robustness and efficiency properties.
+
+This vignette is divided into two main sections, each with two subsections. First, we will guide you through the process when the nuisance parameters are known, covering both independent and dependent covariate right-censoring. We will then repeat the process for when the nuisance parameters need to be estimated. Throughout, we assume that $Y \perp C | X,Z$. The structure of this vignette is as follows:
+
+-   **Known nuisance parameters**
+
+    -   Independent covariate right-censoring ($X \perp C | Z$)
+
+    -   Dependent covariate right-censoring ($X \not\perp C | Z$)
+
+-   **Unknown nuisance parameters**
+
+    -   Independent covariate right-censoring ($X \perp C | Z$)
+
+    -   Dependent covariate right-censoring ($X \not\perp C | Z$)
+
+# Known nuisance parameters
+
+## Independent covariate right-censoring
+
+### Generate data
+
+The `data_mvn()` function generates data from a trivariate normal distribution. The trivariate normal distribution is used so that we can generate data under independent or dependent covariate right-censoring. The inputs of the function are as follows,
+
+-   `nSubjects = Integer`, this is the total number of observations
+-   `dep_censoring = TRUE or FALSE`, if `FALSE` the partial correlation of (X,C) given Z is equal to zero. If `TRUE`, this partial correlation is not equal to zero.
+
+In the following example, we simulate a sample size of 1,000 under non-independent covariate right-censoring. As noted in the **Supplementary Material Section S.5** to the paper "**Establishing the Parallels and Differences Between Right-Censored and Missing Covariates"**, the oracle mean and standard deviation of the distribution for $X$ are 0 and 1. For $C$, these values are 0 and 2.
+
+```{R}
+# generate data under independent covariate right censoring
+set.seed(0)
+n=500
+dep_censoring. = FALSE
+dat = data_mvn(nSubjects = n, dep_censoring = dep_censoring.)
+
+# visualize data
+head(dat, 5) %>% paged_table()
+```
+
+Under independent covariate right-censoring we assume that $X \perp C | Z$. We can check this assumption by comparing the marginal correlation of $(X,C)$ and the partial correlation given $Z$.
+
+```{R}
+# check bivariate correlations 
+marginal_cor = dat %>% select(X,C,Z) %>% cor() %>% round(2)
+marginal_cor
+
+# check partial correlation between (X,C) given Z
+partial_cor = dat %>% select(X,C,Z) %>% ppcor::pcor() 
+partial_cor$estimate %>% round(2)
+```
+
+As expected, the marginal correlation between $(X,C)$ was `r marginal_cor[2,1]`, but only `r round(partial_cor$estimate,2)[2,1]` when conditional on $Z$. This confirms that in our simulation setup, $X$ and $C$ are only independent conditionally on $Z$. Moreover, under this simulation scenario, the expected right-censoring rate is 50%, and in this particular simulation, the right-censoring rate is `r round(mean(dat$D), 2)`. The distribution of $(X,C)$ graphically illustrated below:
+
+```{R}
+# Set up the plotting area to have 1 row and 2 columns
+par(mfrow = c(1, 2))
+
+# Histogram and density for X
+hist(dat$X, probability = TRUE, main = "Histogram of X", xlab = "X")
+x_mean <- mean(dat$X)
+x_sd <- sd(dat$X)
+curve(dnorm(x, mean = x_mean, sd = x_sd), add = TRUE, col = "blue", lwd = 2)
+legend("topright", legend = paste("Mean =", round(x_mean, 2), "\nSD =", round(x_sd, 2)), bty = "n")
+
+# Histogram and density for C
+hist(dat$C, probability = TRUE, main = "Histogram of C", xlab = "C")
+c_mean <- mean(dat$C)
+c_sd <- sd(dat$C)
+curve(dnorm(x, mean = c_mean, sd = c_sd), add = TRUE, col = "red", lwd = 2)
+legend("topright", legend = paste("Mean =", round(c_mean, 2), "\nSD =", round(c_sd, 2)), bty = "n")
+par(mfrow = c(1, 1)) # Reset the plotting parameters to default
+```
+
+In addition to these, we have the oracle probability of observing $X$ defined by $\pi_{X,Z}(w,z)$. The oracle values of this probability distribution become smaller the larger $W$ becomes since a larger a higher value of $X$ correspond to a higher probability that $X$ is censored. This relationship can be observed from the following plot:
+
+```{R}
+# Set up the plotting area to have 1 row and 2 columns
+par(mfrow = c(1, 2))
+
+# scatter plot for pi(w,z)
+dat %>%
+  mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>% 
+  ggplot(aes(x= W ,y=myp_xz, colour =D)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Scatter plot of \u03C0(w,z) vs. W", y = "\u03C0(w,z)", x = "W", colour = "") +
+  theme(legend.position="bottom")
+```
+
+The values for the probability defined by $(Y,Z)$ are similar to those defined by $(W,Z)$. In fact the correlation between these values is `r round(cor(dat$myp_xz, dat$myp_yz), 2)`. Thus, while not the same these probability values are close.
+
+```{R}
+# scatter plot for pi(y,z)
+dat %>%
+  mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>%
+  ggplot(aes(x= myp_xz ,y=myp_yz, colour =D)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Scatter plot of \u03C0(w,z) vs. \u03C0(y,z)", y = "\u03C0(y,z)", x = "\u03C0(w,z)",  colour = "") +
+  theme(legend.position="bottom")
+```
+
+### Estimate parameters
+
+Now that we have generated the data, we will now estimate the linear regression parameters and their corresponding standard error estimates. Before that, we will need to calculate some probabilities from a uniform distribution in order to misspecify the probability of $X$ being observed. Estimates from one simulation can be obtained using the following code:
+
+```{R, eval = FALSE}
+tic()
+##################################
+# uniform (0.1, 0.9) distribution
+dat$myp_uniform = runif(n, min=0.1, max = 0.9)
+
+##################################
+# Oracle
+est00 = estimate_beta(data_yXZ = dat, model = y ~ AX + Z) # oracle
+
+# Naive
+est10 = estimate_beta(data_yXZ = dat, model = y ~ AW + Z) # naive
+
+# CC
+est20 = estimate_beta_cc(data_yXZ = dat, model = y ~ AW + Z) # CC
+
+# IPW
+est30 = estimate_beta_ipw(data_yXZ = dat, model = y ~ AW+Z, myweight = "oracle") # oracle weight pi(w,z)
+est31 = estimate_beta_ipw(data_yXZ = dat, model = y ~ AW+Z, myweight = "yz") # oracle weight pi(y,z)
+est32 = estimate_beta_ipw(data_yXZ = dat, model = y ~ AW+Z, myweight = "uniform") # random weights
+
+# MLE
+est40 = estimate_beta_likelihood(dat, y ~ AW+Z, eta1= FALSE, dep_censoring = dep_censoring.) # correct specification of f(X,Z)
+est41 = estimate_beta_likelihood(dat, y ~ AW+Z, eta1= TRUE, dep_censoring = dep_censoring.) # incorrect specification of f(X|Z)
+
+# ACC
+est50 = estimate_beta_acc(dat, y ~ AW+Z, eta1= FALSE, myweight = "oracle", dep_censoring = dep_censoring.)
+est51 = estimate_beta_acc(dat, y ~ AW+Z, eta1= TRUE, myweight = "oracle", dep_censoring = dep_censoring.)
+est52 = estimate_beta_acc(dat, y ~ AW+Z, eta1= FALSE, myweight = "uniform", dep_censoring = dep_censoring.)
+est53 = estimate_beta_acc(dat, y ~ AW+Z, eta1= TRUE, myweight = "uniform", dep_censoring = dep_censoring.)
+est54 = estimate_beta_acc_lambda_close(dat, y ~ AW+Z, myweight = "oracle")
+est55 = estimate_beta_acc_lambda_close(dat, y ~ AW+Z, myweight = "uniform")
+
+# MACC
+est60 = estimate_beta_macc(dat, y ~ AW+Z, eta1= FALSE, myweight = "oracle", dep_censoring = dep_censoring.)
+est61 = estimate_beta_macc(dat, y ~ AW+Z, eta1= TRUE, myweight = "oracle", dep_censoring = dep_censoring.)
+est62 = estimate_beta_macc(dat, y ~ AW+Z, eta1= FALSE, myweight = "uniform", dep_censoring = dep_censoring.)
+est63 = estimate_beta_macc(dat, y ~ AW+Z, eta1= TRUE, myweight = "uniform", dep_censoring = dep_censoring.)
+est64 = estimate_beta_macc_lambda_close(dat, y ~ AW+Z, myweight = "oracle")
+est65 = estimate_beta_macc_lambda_close(dat, y ~ AW+Z, myweight = "uniform")
+
+# AIPW
+est70 = estimate_beta_aipw(dat, y ~ AW+Z, eta1= FALSE, myweight = "oracle", dep_censoring = dep_censoring.)
+est71 = estimate_beta_aipw(dat, y ~ AW+Z, eta1= TRUE, myweight = "oracle", dep_censoring = dep_censoring.)
+est72 = estimate_beta_aipw(dat, y ~ AW+Z, eta1= FALSE, myweight = "uniform", dep_censoring = dep_censoring.)
+est73 = estimate_beta_aipw(dat, y ~ AW+Z, eta1= TRUE, myweight = "uniform", dep_censoring = dep_censoring.)
+est74 = estimate_beta_aipw_lambda_close(dat, y ~ AW+Z, myweight = "oracle")
+est75 = estimate_beta_aipw_lambda_close(dat, y ~ AW+Z, myweight = "uniform")
+
+toc()
+
+# combine results
+
+myreturn = data.frame(cbind(c("oracle","naive", "cc", 
+                              "ipw-wz", "ipw-yz", "ipw-w", 
+                              "acc", "acc-psi", "acc-w", "acc-psi-w", "acc-lambda", "acc-lambda-w", 
+                              "macc", "macc-psi", "macc-w", "macc-psi-w", "macc-lambda", "macc-lambda-w", 
+                              "aipw", "aipw-psi", "aipw-w", "aipw-psi-w", "aipw-lambda", "aipw-lambda-w"),
+                            # beta estimates + sigma
+                            rbind(est00$beta_est,est10$beta_est,est20$beta_est,
+                                  est30$beta_est, est31$beta_est, est32$beta_est, 
+                                  est50$beta_est, est51$beta_est, est52$beta_est, est53$beta_est, est54$beta_est, est55$beta_est,
+                                  est60$beta_est, est61$beta_est, est62$beta_est, est63$beta_est, est64$beta_est, est65$beta_est,
+                                  est70$beta_est, est71$beta_est, est62$beta_est, est73$beta_est, est74$beta_est, est75$beta_est),
+                            # standard error estimates
+                            rbind(est00$se_est,est10$se_est,est20$se_est,
+                                  est30$se_est,est31$se_est,est32$se_est, 
+                                  est50$se_est, est51$se_est, est52$se_est, est53$se_est, est54$se_est, est55$se_est,
+                                  est60$se_est, est61$se_est, est62$se_est, est63$se_est, est64$se_est, est65$se_est,
+                                  est70$se_est, est71$se_est, est72$se_est, est73$se_est, est74$se_est, est75$se_est)
+  ))
+colnames(myreturn) = c("Method",
+                        "beta0.x", "beta1.x", "beta2.x","sigma.x",
+                        "beta0.y", "beta1.y", "beta2.y")
+  
+
+myreturn_mle = data.frame(cbind(c("mle","mle-fxz"),
+                            rbind(est40$beta_est, est41$beta_est),
+                            rbind(est40$se_est, est41$se_est)))
+colnames(myreturn_mle) = c("Method",
+                        "beta0.x", "beta1.x", "beta2.x","sigma.x",
+                        "beta0.y", "beta1.y", "beta2.y") 
+
+myreturn = rbind(myreturn, myreturn_mle)
+paged_table(myreturn)
+```
+
+Alternatively, we can use the function `simcalc()` to calculate one simulation. The inputs of the function are:
+
+-   `sim_i`= Scalar, this value sets the seed for the simulation.
+
+-   `dep_censoring. = TRUE or FALSE`, if `FALSE` the partial correlation of (X,C) given Z is equal to zero. If `TRUE`, this partial correlation is not equal to zero.
+
+```{R, eval = FALSE}
+tic(); 
+myresults = parallel::mclapply(1:3, function(x) simcalc(x, dep_censoring. = dep_censoring.))
+toc()
+```
+
+Instead of using `parallel::mclapply()`, one may also us `lapply()` to process the jobs. The only benefit of `parallel::mclapply()` is that the jobs are completed faster. What was done in the research paper is that each simulation was sent separately to the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/), where up to 800 jobs can run simultaneously. These results, were then saved and analyzed individually. Instead of running 3,000 simulation, we have included the simulation results in this repository. We now load these and replicate the results presented in manuscript.
+
+### Simulation study results
+
+```{R}
+#helper function to read dat
+readmysims <-  function(list_est, size){
+    myresults <- list_est %>% purrr::map_df(read.csv)
+    myresults$n = size
+    myresults$sim = unlist(lapply(1:length(list_est), function(x) rep(x, length(unique(myresults$Method)))))
+    badlist = myresults %>%
+              subset(Method %!in% c("naive")) %>%
+               subset(is.na(beta0.x) | is.na(beta1.x) | is.na(beta2.x) | is.na(sigma.x) |
+                      is.na(beta0.y) | is.na(beta1.y) | is.na(beta2.y) |
+                       abs(beta0.x-theta[1])/theta[1] >= est_threshold |
+                       abs(beta1.x-theta[2])/theta[2] >= est_threshold |
+                       abs(beta2.x-theta[3])/theta[3] >= est_threshold |
+                       abs(sigma.x-theta[4])/theta[4] >= est_threshold |
+                       beta0.y > 1 | beta1.y > 1 | beta2.y > 1)
+    myresults = myresults %>% subset(sim %!in% badlist$sim)
+    return(myresults)
+}
+
+```
+
+```{R}
+est_threshold = 3 # threshold use to exclude simulations, i.e., remove if bias is larger than 300%
+theta = c(1,2,3,1) # oracle values
+
+# Load files from folder
+# Sample size 100
+list_est <- list.files(path = paste0("../01-Data/Known nuisance parameters/Independent/100-V3"), pattern = "est_results*", full.names = T)
+myresults_a = readmysims(list_est, 100)
+
+# Sample size 300
+list_est <- list.files(path = paste0("../01-Data/Known nuisance parameters/Independent/300-V3"), pattern = "est_results*", full.names = T)
+myresults_b = readmysims(list_est, 300)
+
+# Sample size 1000
+list_est <- list.files(path = paste0("../01-Data/Known nuisance parameters/Independent/1000-V3"), pattern = "est_results*", full.names = T)
+myresults_c = readmysims(list_est, 1000)
+
+# combine and format
+myresults = rbind(myresults_a, myresults_b, myresults_c) %>%
+            data.frame() %>%
+             mutate(Method =
+    factor(Method,
+          levels = c("oracle", "cc", "naive",
+                    "ipw", "ipw-w" , "ipw-hat", "ipw-yz",
+                    "acc","acc-eta1", "acc-w","acc-eta1-w", "acc-lambda", "acc-lambda-hat", "acc-lambda-eta1", "acc-lambda-w",  "acc-lambda-eta1-w",
+                    "macc","macc-eta1", "macc-w","macc-eta1-w", "macc-lambda", "macc-lambda-hat", "macc-lambda-eta1", "macc-lambda-w",  "macc-lambda-eta1-w",
+                    "aipw", "aipw-eta1", "aipw-w", "aipw-eta1-w" ,"aipw-lambda", "aipw-lambda-hat","aipw-lambda-eta1", "aipw-lambda-w","aipw-lambda-eta1-w",
+
+                    "mle", "mle-w"))) %>%
+  mutate(Method.c = ifelse(Method %in% c("ipw", "ipw-w" , "ipw-hat", "ipw-yz"), "ipw",
+                      ifelse(Method %in% c("aipw", "aipw-eta1", "aipw-w", "aipw-eta1-w" ,"aipw-lambda", "aipw-lambda-hat","aipw-lambda-eta1", "aipw-lambda-w","aipw-lambda-eta1-w"), "aipw",
+                      ifelse(Method %in% c("acc","acc-eta1", "acc-w","acc-eta1-w", "acc-lambda", "acc-lambda-hat", "acc-lambda-eta1", "acc-lambda-w",  "acc-lambda-eta1-w"), "acc",
+                      ifelse(Method %in% c("macc","macc-eta1", "macc-w","macc-eta1-w", "macc-lambda", "macc-lambda-hat", "macc-lambda-eta1", "macc-lambda-w",  "macc-lambda-eta1-w"), "macc",
+                      ifelse(Method %in% c("mle","mle-w"), "mle",
+                      ifelse(Method == "oracle", "oracle",
+                      ifelse(Method == "cc", "cc", "naive")) )) )))) %>%
+  mutate(Method.c = ifelse(Method == "naive", "naive", Method.c)) %>%
+    mutate(Method.c = factor(Method.c, levels = c("oracle", "cc", "ipw", "acc", "macc", "aipw","mle") ))
+```
+
+After the jobs have been completed, we can compute the mean estimate of $\theta$ (i.e., $N^{-1}\sum_{i=1}^N\hat{\theta}_i$) and its percent bias (i.e., $N^{-1}\sum_{i=1}^N (\hat{\theta}_i-\theta_0)/\theta_0$); the empirical standard deviation of $\hat\theta$ across all simulations; and the empirical mean of the estimated standard error (i.e., $N^{-1}\sum_{i=1}^{N} \hat{\rm SE}_i$). Estimated standard errors were computed using the asymptotic variances derived in our theorems, with all expectations replaced by empirical averages. Lastly, we can calculate the empirical coverage of the estimated 95% confidence intervals.
+
+```{R}
+myresults = myresults %>% 
+  mutate(beta0.x = as.numeric(beta0.x),
+         beta1.x = as.numeric(beta1.x),
+         beta2.x = as.numeric(beta2.x),
+         sigma.x = as.numeric(sigma.x),
+         beta0.y = as.numeric(beta0.y),
+         beta1.y = as.numeric(beta1.y),
+         beta2.y = as.numeric(beta2.y)) %>%
+  # subset only those simulations that
+  filter(abs(beta0.x-theta[1])/theta[1] < est_threshold &
+           abs(beta1.x-theta[2])/theta[2] < est_threshold &
+           abs(beta2.x-theta[3])/theta[3] < est_threshold &
+           abs(sigma.x-theta[4])/theta[4] < est_threshold) %>%
+  na.omit()
+
+# Calculate bias 
+myresults$beta0_coverage <- ((myresults$beta0.x + qnorm(0.975)*myresults$beta0.y) >= theta[1]) & 
+  ((myresults$beta0.x - qnorm(0.975)*myresults$beta0.y) <= theta[1])
+myresults$beta1_coverage <- ((myresults$beta1.x + qnorm(0.975)*myresults$beta1.y) >= theta[2]) & 
+  ((myresults$beta1.x - qnorm(0.975)*myresults$beta1.y) <= theta[2])
+myresults$beta2_coverage <- ((myresults$beta2.x + qnorm(0.975)*myresults$beta2.y) >= theta[3]) & 
+  ((myresults$beta2.x - qnorm(0.975)*myresults$beta2.y) <= theta[3])
+
+# mean estimates
+myresults_est = myresults %>% 
+  dplyr::select(Method,n,beta0.x, beta1.x, beta2.x, sigma.x) %>%
+  group_by(Method, n) %>%
+  summarise_all(function(x) mean(as.numeric(x)) %>% round(2))
+myresults_est %>% paged_table()
+
+# mean SE
+myresults_se = myresults %>%
+  dplyr::select(Method,n,beta0.y, beta1.y, beta2.y) %>%
+  group_by(Method,n) %>%
+  summarise_all(function(x) mean(as.numeric(x)*100) %>% round(2))
+myresults_se  %>% paged_table()
+
+# empirical SE
+myresults_sehat = myresults %>%
+  dplyr::select(Method,n,beta0.x, beta1.x, beta2.x, sigma.x) %>%
+  group_by(Method,n) %>%
+  summarise_all(function(x) round(100*var(as.numeric(x))^0.5, 5) %>% round(2))
+myresults_sehat  %>% paged_table()
+
+# coverage probabilities
+myresults_coverage = myresults %>%
+  dplyr::select(Method,n, beta0_coverage, beta1_coverage, beta2_coverage) %>%
+  mutate(beta0_coverage = ifelse(beta0_coverage, 1, 0),
+         beta1_coverage = ifelse(beta1_coverage, 1, 0),
+         beta2_coverage = ifelse(beta2_coverage, 1, 0)) %>%
+  group_by(Method,n) %>%
+  summarise_all(function(x) round(mean(x)*100,2))
+myresults_coverage  %>% paged_table()
+```
+
+We can also recreate the figures, as presented in the Supplementary Materials.
+
+```{R fig.width = 7, fig.height = 9}
+## efficiency plots
+# empirical SE
+cc_sehat <- myresults %>%
+  subset(Method %in% c("cc")) %>%
+  dplyr::select(Method, n, beta0.x, beta1.x, beta2.x) %>%
+  reshape2::melt(id.vars = c("Method", "n"), variable.name = c("Parameter")) %>%
+  group_by(Method, n, Parameter) %>%
+  summarise(se_cc = var(value)^0.5, .groups = "drop")
+  
+aug_sehat = myresults %>%
+  subset(Method %in% c("acc","acc-lambda", "macc", "macc-lambda", "aipw", "aipw-lambda", "ipw", "mle")) %>%
+  dplyr::select(Method, n, beta0.x, beta1.x, beta2.x) %>%
+  reshape2::melt(id.vars = c("Method", "n"), variable.name = c("Parameter")) %>%
+  group_by(Method, n, Parameter) %>%
+  summarise(se_aug = var(value)^0.5, .groups = "drop")
+  
+emp_sehat = left_join(aug_sehat, cc_sehat, by = c("n", "Parameter")) %>%
+  mutate(myratio = se_aug/se_cc) %>%
+  mutate(type = "Empirical SE")
+
+
+
+## mean SE  
+cc_sehat <- myresults %>%
+  subset(Method %in% c("cc")) %>%
+  dplyr::select(Method, n, beta0.y, beta1.y, beta2.y) %>%
+  reshape2::melt(id.vars = c("Method", "n"), variable.name = c("Parameter")) %>%
+  group_by(Method, n, Parameter) %>%
+  summarise(se_cc = mean(value), .groups = "drop")
+  
+aug_sehat = myresults %>%
+  subset(Method %in% c("acc","acc-lambda", "macc", "macc-lambda", "aipw", "aipw-lambda", "ipw", "mle")) %>%
+  dplyr::select(Method, n, beta0.y, beta1.y, beta2.y) %>%
+  reshape2::melt(id.vars = c("Method", "n"), variable.name = c("Parameter")) %>%
+  group_by(Method, n, Parameter) %>%
+  summarise(se_aug = mean(value), .groups = "drop")
+  
+mean_sehat = left_join(aug_sehat, cc_sehat, by = c("n", "Parameter")) %>%
+  mutate(myratio = se_aug/se_cc) %>%
+  mutate(type = "Mean SE")
+
+colnames(mean_sehat) = colnames(emp_sehat)  
+myresults_sehat = rbind(mean_sehat, emp_sehat) %>%
+  mutate(Method.x = factor(Method.x, levels = c("ipw","mle","acc", "acc-lambda", "macc", "macc-lambda" , "aipw", "aipw-lambda"))) %>%
+  mutate(Parameter = ifelse(Parameter %in% c("beta0.y","beta0.x"), "beta0", ifelse(Parameter %in% c("beta1.y", "beta1.x"), "beta1", "beta2")))
+
+p1 <- myresults %>%
+  subset(Method.c %in% c("cc","acc", "macc", "ipw", "aipw", "mle")) %>%
+  select(Method, Method.c, beta0.x, beta1.x, beta2.x, n) %>%
+  reshape2::melt(id.vars = c("Method", "Method.c", "n"), variable.name = c("Parameter")) %>%
+  mutate(Parameter = factor(Parameter, levels = c("beta0.x", "beta2.x", "beta1.x"))) %>%
+  subset(Method != "mle-w" & n =="1000") %>%
+  mutate(Method = factor(Method, labels = c("CC", "IPW", "IPW, incorrect \u03C0(w,z)", "IPW, correct \u03C0(y,z)", 
+                                            "ACC", "ACC, incorrect \u03a8(y,z)", "ACC, incorrect \u03C0(y,z)", "ACC, incorrect \u03C0(y,z) and \u03a8(y,z)", "ACC with \u039b", "ACC with \u039b, incorrect \u03C0(y,z)",
+                                            "MACC", "MACC, incorrect \u03a8(y,z)", "MACC, , incorrect \u03C0(w,z)", "MACC, incorrect \u03C0(w,z) and \u03a8(y,z)", "MACC with \u039b", "MACC with \u039b, incorrect \u03C0(w,z)",
+                                            "AIPW", "AIPW, incorrect \u03a8(y,z)", "AIPW, , incorrect \u03C0(w,z)", "AIPW, incorrect \u03C0(w,z) and \u03a8(y,z)", "AIPW with \u039b", "AIPW with \u039b, incorrect \u03C0(w,z)", "MLE"))) %>%
+  ggplot(aes(y=value, x=Method, fill=Method.c)) +
+  geom_boxplot(outlier.color = "black", outlier.size = 0.2, position=position_dodge(.9)) +
+  stat_summary(fun=mean, colour="white", geom="point", shape=18, size=2, position=position_dodge(.9)) +
+  facet_grid(scales = "free",
+             #cols = vars(n), 
+             rows = vars(Parameter), 
+             labeller = labeller(Parameter = c(beta0.x = "Intercept: \u03B2\u2080=1", 
+                                               beta2.x = "A-X: \u03B2\u2081=3", 
+                                               beta1.x = "Z: \u03B2\u2082=2"), 
+                                type = c("Emprical SE", "Mean SE"))) +  # or any other appropriate label for `type`
+  geom_hline(data = . %>% filter(Parameter == "beta0.x"), aes(yintercept = 1), linetype = "dashed", color = "red") +
+  geom_hline(data = . %>% filter(Parameter == "beta2.x"), aes(yintercept = 3), linetype = "dashed", color = "red") +
+  geom_hline(data = . %>% filter(Parameter == "beta1.x"), aes(yintercept = 2), linetype = "dashed", color = "red") +
+  theme_bw() + theme(legend.position="bottom") +
+  theme(axis.text.x = element_text(angle = 70, vjust = 1, hjust=1, size = 10),
+        legend.text.align = 0,
+        axis.text.y = element_text(size=12)) +
+  guides(fill=guide_legend(nrow=1)) +
+  labs(x = "", y = TeX("Estimate"), fill = "Estimator", title = "Distribution of simulation results under independent covariate right-censoring") +
+  scale_fill_manual(labels = c("CC", "IPW", "ACC", "MACC", "AIPW", "MLE"), 
+                    values = c("#000000","#E69F00","#56B4E9","#009E73",
+                               "#F0E442", "#0072B2")) 
+
+p1
+
+# save plot  
+ggsave(filename = "independent-boxplots-combined.png",  width = 8, height = 9, dpi = 300, units = "in")
+  
+p2 <- myresults_sehat %>%
+  mutate(Parameter = factor(Parameter, levels = c("beta0", "beta2", "beta1"))) %>%
+  ggplot(aes(x=n, y=myratio, color=Method.x)) +
+  geom_point(size=2) +
+  geom_line(linewidth = 1) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "red") +
+  facet_grid(cols = vars(type), 
+             rows = vars(Parameter), 
+             labeller = labeller(Parameter = c(beta0 = "Intercept: \u03B2\u2080", 
+                                               beta2 = "A-X: \u03B2\u2081", 
+                                               beta1 = "Z: \u03B2\u2082"), 
+                                type = c("Emprical SE", "Mean SE"))) +  # or any other appropriate label for `type`
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  labs(title = "Efficiency comparative of estimators with the CC estimator for \nindependent covariate right-censoring",
+       y = expression("Efficiency Ratio (%) = " * SE[Method] / SE[CC]), 
+       color = "Estimator", 
+       x = "Sample size (n)") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_x_continuous(breaks = unique(myresults_sehat$n)) +
+  guides(color = guide_legend(nrow = 2)) +
+  scale_color_manual(labels = c("IPW", "MLE", "ACC", 
+                                expression("ACC with " * Lambda), 
+                                "MACC", 
+                                expression("MACC with " * Lambda), 
+                                "AIPW", 
+                                expression("AIPW with " * Lambda)), 
+                    values = c("#000000", "#E69F00", "#56B4E9", 
+                               "#009E73", "#F0E442", "#0072B2", 
+                               "#D55E00", "#CC79A7"))
+
+p2
+
+# save plot
+ggsave(filename = "independent-efficiency.png",  width = 7, height = 9, dpi = 300, units = "in")
+```
+
+## Dependent covariate right-censoring
+
+### Generate data
+
+Just as in independent covariate-right censoring, we will now show how to simulate data under dependent covariate right-censoring using the function `data_mvn()`. Instead of specifying `dep_censoring = FALSE`, we will set it equal to `TRUE`. This will make the partial correlation of $(X,C)$ given $Z$ not equal to zero. In the following subsections, we replicate the above example, but for dependent covariate right censoring. As before the oracle mean and standard deviation of the distribution for $X$ are 0 and 1. For $C$, these values are 0 and 2.
+
+```{r}
+# generate data under dependent covariate right censoring
+set.seed(0)
+dep_censoring. = TRUE
+dat = data_mvn(nSubjects = n, dep_censoring = dep_censoring.)
+
+# visualize data
+head(dat, 2) %>% paged_table()
+```
+
+Under independent covariate right-censoring we assume that $X \not\perp C | Z$. We can check this assumption by comparing the marginal correlation of $(X,C)$ and the partial correlation given $Z$.
+
+```{R}
+# check bivariate correlations 
+dat %>% select(X,C,Z) %>% cor() %>% round(2)
+
+# check partial correlation between (X,C) given Z
+partial_cor = dat %>% select(X,C,Z) %>% ppcor::pcor() 
+partial_cor$estimate %>% round(2)
+```
+
+For both, the marginal and conditional correlation given $Z$ between $(X,C)$ is non-zero. Therefore, our simulation scenario allow us to consider the case when $X$ and $C$ are not conditionally independent given $Z$. Moreover, under this simulation scenario, the percent censoring remains 50% (actual `r round(mean(dat$D), 2)`). The distribution of $(X,C)$ is as follows,
+
+```{R}
+# Set up the plotting area to have 1 row and 2 columns
+par(mfrow = c(1, 2))
+
+# Histogram and density for X
+hist(dat$X, probability = TRUE, main = "Histogram of X", xlab = "X")
+x_mean <- mean(dat$X)
+x_sd <- sd(dat$X)
+curve(dnorm(x, mean = x_mean, sd = x_sd), add = TRUE, col = "blue", lwd = 2)
+legend("topright", legend = paste("Mean =", round(x_mean, 2), "\nSD =", round(x_sd, 2)), bty = "n")
+
+# Histogram and density for C
+hist(dat$C, probability = TRUE, main = "Histogram of C", xlab = "C")
+c_mean <- mean(dat$C)
+c_sd <- sd(dat$C)
+curve(dnorm(x, mean = c_mean, sd = c_sd), add = TRUE, col = "red", lwd = 2)
+legend("topright", legend = paste("Mean =", round(c_mean, 2), "\nSD =", round(c_sd, 2)), bty = "n")
+par(mfrow = c(1, 1)) # Reset the plotting parameters to default
+```
+
+In addition to these, we have the oracle probability of observing $X$ defined by $\pi_{X,Z}(w,z)$. The oracle values of this probability distribution become smaller the larger $W$ becomes since a larger a higher value of $X$ correspond to a higher probability that $X$ is censored. This relationship can be observed from the following plot:
+
+```{R}
+# Set up the plotting area to have 1 row and 2 columns
+par(mfrow = c(1, 2))
+
+# scatter plot for pi(w,z)
+dat %>%
+  mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>% 
+  ggplot(aes(x= W ,y=myp_xz, colour =D)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Scatter plot of \u03C0(w,z) vs. W", y = "\u03C0(w,z)", x = "W", colour = "") +
+  theme(legend.position="bottom")
+```
+
+The values for the probability defined by $(Y,Z)$ are similar to those defined by $(W,Z)$. In fact the correlation between these values is `r round(cor(dat$myp_xz, dat$myp_yz), 2)`. Thus, while not the same these probability values are close.
+
+```{R}
+# scatter plot for pi(y,z)
+dat %>%
+  mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>%
+  ggplot(aes(x= myp_xz ,y=myp_yz, colour =D)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Scatter plot of \u03C0(w,z) vs. \u03C0(y,z)", y = "\u03C0(y,z)", x = "\u03C0(w,z)",  colour = "") +
+  theme(legend.position="bottom")
+```
+
+### Estimate parameters
+
+Now that we have generated the data, we will now estimate the linear regression parameters and their corresponding standard error estimates. Before that, we will need to calculate some probabilities from a uniform distribution in order to misspecify the probability of $X$ being observed. Estimates from one simulation can be obtained similarly using the following code. The only difference is that the "oracle" probability of observing $X$ and the estimators now account for the conditional dependence between $X$ and $C$ given $Z$:
+
+```{R, eval = FALSE}
+tic()
+##################################
+# uniform (0.1, 0.9) distribution
+dat$myp_uniform = runif(n, min=0.1, max = 0.9)
+
+##################################
+# Oracle
+est00 = estimate_beta(data_yXZ = dat, model = y ~ AX + Z) # oracle
+
+# Naive
+est10 = estimate_beta(data_yXZ = dat, model = y ~ AW + Z) # naive
+
+# CC
+est20 = estimate_beta_cc(data_yXZ = dat, model = y ~ AW + Z) # CC
+
+# IPW
+est30 = estimate_beta_ipw(data_yXZ = dat, model = y ~ AW+Z, myweight = "oracle") # oracle weight pi(w,z)
+est31 = estimate_beta_ipw(data_yXZ = dat, model = y ~ AW+Z, myweight = "yz") # oracle weight pi(y,z)
+est32 = estimate_beta_ipw(data_yXZ = dat, model = y ~ AW+Z, myweight = "uniform") # random weights
+
+# MLE
+est40 = estimate_beta_likelihood(dat, y ~ AW+Z, eta1= FALSE, dep_censoring = dep_censoring.) # correct specification of f(X,Z)
+est41 = estimate_beta_likelihood(dat, y ~ AW+Z, eta1= TRUE, dep_censoring = dep_censoring.) # incorrect specification of f(X|Z)
+
+# ACC
+est50 = estimate_beta_acc(dat, y ~ AW+Z, eta1= FALSE, myweight = "oracle", dep_censoring = dep_censoring.)
+est51 = estimate_beta_acc(dat, y ~ AW+Z, eta1= TRUE, myweight = "oracle", dep_censoring = dep_censoring.)
+est52 = estimate_beta_acc(dat, y ~ AW+Z, eta1= FALSE, myweight = "uniform", dep_censoring = dep_censoring.)
+est53 = estimate_beta_acc(dat, y ~ AW+Z, eta1= TRUE, myweight = "uniform", dep_censoring = dep_censoring.)
+est54 = estimate_beta_acc_lambda_close(dat, y ~ AW+Z, myweight = "oracle")
+est55 = estimate_beta_acc_lambda_close(dat, y ~ AW+Z, myweight = "uniform")
+
+# MACC
+est60 = estimate_beta_macc(dat, y ~ AW+Z, eta1= FALSE, myweight = "oracle", dep_censoring = dep_censoring.)
+est61 = estimate_beta_macc(dat, y ~ AW+Z, eta1= TRUE, myweight = "oracle", dep_censoring = dep_censoring.)
+est62 = estimate_beta_macc(dat, y ~ AW+Z, eta1= FALSE, myweight = "uniform", dep_censoring = dep_censoring.)
+est63 = estimate_beta_macc(dat, y ~ AW+Z, eta1= TRUE, myweight = "uniform", dep_censoring = dep_censoring.)
+est64 = estimate_beta_macc_lambda_close(dat, y ~ AW+Z, myweight = "oracle")
+est65 = estimate_beta_macc_lambda_close(dat, y ~ AW+Z, myweight = "uniform")
+
+# AIPW
+est70 = estimate_beta_aipw(dat, y ~ AW+Z, eta1= FALSE, myweight = "oracle", dep_censoring = dep_censoring.)
+est71 = estimate_beta_aipw(dat, y ~ AW+Z, eta1= TRUE, myweight = "oracle", dep_censoring = dep_censoring.)
+est72 = estimate_beta_aipw(dat, y ~ AW+Z, eta1= FALSE, myweight = "uniform", dep_censoring = dep_censoring.)
+est73 = estimate_beta_aipw(dat, y ~ AW+Z, eta1= TRUE, myweight = "uniform", dep_censoring = dep_censoring.)
+est74 = estimate_beta_aipw_lambda_close(dat, y ~ AW+Z, myweight = "oracle")
+est75 = estimate_beta_aipw_lambda_close(dat, y ~ AW+Z, myweight = "uniform")
+
+toc()
+
+# combine results
+
+myreturn = data.frame(cbind(c("oracle","naive", "cc", 
+                              "ipw-wz", "ipw-yz", "ipw-w", 
+                              "acc", "acc-psi", "acc-w", "acc-psi-w", "acc-lambda", "acc-lambda-w", 
+                              "macc", "macc-psi", "macc-w", "macc-psi-w", "macc-lambda", "macc-lambda-w", 
+                              "aipw", "aipw-psi", "aipw-w", "aipw-psi-w", "aipw-lambda", "aipw-lambda-w"),
+                            # beta estimates + sigma
+                            rbind(est00$beta_est,est10$beta_est,est20$beta_est,
+                                  est30$beta_est, est31$beta_est, est32$beta_est, 
+                                  est50$beta_est, est51$beta_est, est52$beta_est, est53$beta_est, est54$beta_est, est55$beta_est,
+                                  est60$beta_est, est61$beta_est, est62$beta_est, est63$beta_est, est64$beta_est, est65$beta_est,
+                                  est70$beta_est, est71$beta_est, est62$beta_est, est73$beta_est, est74$beta_est, est75$beta_est),
+                            # standard error estimates
+                            rbind(est00$se_est,est10$se_est,est20$se_est,
+                                  est30$se_est,est31$se_est,est32$se_est, 
+                                  est50$se_est, est51$se_est, est52$se_est, est53$se_est, est54$se_est, est55$se_est,
+                                  est60$se_est, est61$se_est, est62$se_est, est63$se_est, est64$se_est, est65$se_est,
+                                  est70$se_est, est71$se_est, est72$se_est, est73$se_est, est74$se_est, est75$se_est)
+  ))
+colnames(myreturn) = c("Method",
+                        "beta0.x", "beta1.x", "beta2.x","sigma.x",
+                        "beta0.y", "beta1.y", "beta2.y")
+  
+
+myreturn_mle = data.frame(cbind(c("mle","mle-fxz"),
+                            rbind(est40$beta_est, est41$beta_est),
+                            rbind(est40$se_est, est41$se_est)))
+colnames(myreturn_mle) = c("Method",
+                        "beta0.x", "beta1.x", "beta2.x","sigma.x",
+                        "beta0.y", "beta1.y", "beta2.y") 
+
+myreturn = rbind(myreturn, myreturn_mle)
+paged_table(myreturn)
+```
+
+Alternatively, we can also use the function `simcalc()` to calculate one simulation. Instead of `dep_censoring. =FALSE`, we will set it equal to `TRUE` so that the partial correlation of (X,C) given Z is not equal to zero.
+
+```{R, eval = FALSE}
+tic(); 
+myresults = parallel::mclapply(1:3, function(x) simcalc(x, dep_censoring. = dep_censoring.))
+toc()
+```
+
+Similar as for the independent case, we computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/), where up to 800 jobs can run simultaneously. These results, were then saved and analyzed individually. Instead of running 3,000 simulation locally, we have included the simulation results in this repository. We now load these and replicate the results presented in manuscript.
+
+### Simulation study results
+
+```{R}
+# Load files from Dependent folder
+# Sample size 100
+list_est <- list.files(path = paste0("../01-Data/Known nuisance parameters/Dependent/100-V3"), pattern = "est_results*", full.names = T)
+myresults_a = readmysims(list_est, 100)
+
+# Sample size 300
+list_est <- list.files(path = paste0("../01-Data/Known nuisance parameters/Dependent/300-V3"), pattern = "est_results*", full.names = T)
+myresults_b = readmysims(list_est, 300)
+
+# Sample size 1000
+list_est <- list.files(path = paste0("../01-Data/Known nuisance parameters/Dependent/1000-V3"), pattern = "est_results*", full.names = T)
+myresults_c = readmysims(list_est, 1000)
+
+# combine and format
+myresults = rbind(myresults_a, myresults_b, myresults_c) %>%
+            data.frame() %>%
+             mutate(Method =
+    factor(Method,
+          levels = c("oracle", "cc", "naive",
+                    "ipw", "ipw-w" , "ipw-hat", "ipw-yz",
+                    "acc","acc-eta1", "acc-w","acc-eta1-w", "acc-lambda", "acc-lambda-hat", "acc-lambda-eta1", "acc-lambda-w",  "acc-lambda-eta1-w",
+                    "macc","macc-eta1", "macc-w","macc-eta1-w", "macc-lambda", "macc-lambda-hat", "macc-lambda-eta1", "macc-lambda-w",  "macc-lambda-eta1-w",
+                    "aipw", "aipw-eta1", "aipw-w", "aipw-eta1-w" ,"aipw-lambda", "aipw-lambda-hat","aipw-lambda-eta1", "aipw-lambda-w","aipw-lambda-eta1-w",
+
+                    "mle", "mle-w"))) %>%
+  mutate(Method.c = ifelse(Method %in% c("ipw", "ipw-w" , "ipw-hat", "ipw-yz"), "ipw",
+                      ifelse(Method %in% c("aipw", "aipw-eta1", "aipw-w", "aipw-eta1-w" ,"aipw-lambda", "aipw-lambda-hat","aipw-lambda-eta1", "aipw-lambda-w","aipw-lambda-eta1-w"), "aipw",
+                      ifelse(Method %in% c("acc","acc-eta1", "acc-w","acc-eta1-w", "acc-lambda", "acc-lambda-hat", "acc-lambda-eta1", "acc-lambda-w",  "acc-lambda-eta1-w"), "acc",
+                      ifelse(Method %in% c("macc","macc-eta1", "macc-w","macc-eta1-w", "macc-lambda", "macc-lambda-hat", "macc-lambda-eta1", "macc-lambda-w",  "macc-lambda-eta1-w"), "macc",
+                      ifelse(Method %in% c("mle","mle-w"), "mle",
+                      ifelse(Method == "oracle", "oracle",
+                      ifelse(Method == "cc", "cc", "naive")) )) )))) %>%
+  mutate(Method.c = ifelse(Method == "naive", "naive", Method.c)) %>%
+    mutate(Method.c = factor(Method.c, levels = c("oracle", "cc", "ipw", "acc", "macc", "aipw","mle") ))
+```
+
+After the jobs have been completed, we can compute the mean estimate of $\theta$ (i.e., $N^{-1}\sum_{i=1}^N\hat{\theta}_i$) and its percent bias (i.e., $N^{-1}\sum_{i=1}^N (\hat{\theta}_i-\theta_0)/\theta_0$); the empirical standard deviation of $\hat\theta$ across all simulations; and the empirical mean of the estimated standard error (i.e., $N^{-1}\sum_{i=1}^{N} \hat{\rm SE}_i$). Estimated standard errors were computed using the asymptotic variances derived in our theorems, with all expectations replaced by empirical averages. Lastly, we can calculate the empirical coverage of the estimated 95% confidence intervals.
+
+```{R}
+myresults = myresults %>% 
+  mutate(beta0.x = as.numeric(beta0.x),
+         beta1.x = as.numeric(beta1.x),
+         beta2.x = as.numeric(beta2.x),
+         sigma.x = as.numeric(sigma.x),
+         beta0.y = as.numeric(beta0.y),
+         beta1.y = as.numeric(beta1.y),
+         beta2.y = as.numeric(beta2.y)) %>%
+  # subset only those simulations that
+  filter(abs(beta0.x-theta[1])/theta[1] < est_threshold &
+           abs(beta1.x-theta[2])/theta[2] < est_threshold &
+           abs(beta2.x-theta[3])/theta[3] < est_threshold &
+           abs(sigma.x-theta[4])/theta[4] < est_threshold) %>%
+  na.omit()
+
+# Calculate bias 
+myresults$beta0_coverage <- ((myresults$beta0.x + qnorm(0.975)*myresults$beta0.y) >= theta[1]) & 
+  ((myresults$beta0.x - qnorm(0.975)*myresults$beta0.y) <= theta[1])
+myresults$beta1_coverage <- ((myresults$beta1.x + qnorm(0.975)*myresults$beta1.y) >= theta[2]) & 
+  ((myresults$beta1.x - qnorm(0.975)*myresults$beta1.y) <= theta[2])
+myresults$beta2_coverage <- ((myresults$beta2.x + qnorm(0.975)*myresults$beta2.y) >= theta[3]) & 
+  ((myresults$beta2.x - qnorm(0.975)*myresults$beta2.y) <= theta[3])
+
+# mean estimates
+myresults_est = myresults %>% 
+  dplyr::select(Method,n,beta0.x, beta1.x, beta2.x, sigma.x) %>%
+  group_by(Method, n) %>%
+  summarise_all(function(x) mean(as.numeric(x)) %>% round(2))
+myresults_est %>% paged_table()
+
+# mean SE
+myresults_se = myresults %>%
+  dplyr::select(Method,n,beta0.y, beta1.y, beta2.y) %>%
+  group_by(Method,n) %>%
+  summarise_all(function(x) mean(as.numeric(x)*100) %>% round(2))
+myresults_se  %>% paged_table()
+
+# empirical SE
+myresults_sehat = myresults %>%
+  dplyr::select(Method,n,beta0.x, beta1.x, beta2.x, sigma.x) %>%
+  group_by(Method,n) %>%
+  summarise_all(function(x) round(100*var(as.numeric(x))^0.5, 5) %>% round(2))
+myresults_sehat  %>% paged_table()
+
+# coverage probabilities
+myresults_coverage = myresults %>%
+  dplyr::select(Method,n, beta0_coverage, beta1_coverage, beta2_coverage) %>%
+  mutate(beta0_coverage = ifelse(beta0_coverage, 1, 0),
+         beta1_coverage = ifelse(beta1_coverage, 1, 0),
+         beta2_coverage = ifelse(beta2_coverage, 1, 0)) %>%
+  group_by(Method,n) %>%
+  summarise_all(function(x) round(mean(x)*100,2))
+myresults_coverage  %>% paged_table()
+```
+
+We can also recreate the figures, as presented in the Supplementary Materials.
+
+```{R fig.width = 7, fig.height = 9}
+## efficiency plots
+# empirical SE
+cc_sehat <- myresults %>%
+  subset(Method %in% c("cc")) %>%
+  dplyr::select(Method, n, beta0.x, beta1.x, beta2.x) %>%
+  reshape2::melt(id.vars = c("Method", "n"), variable.name = c("Parameter")) %>%
+  group_by(Method, n, Parameter) %>%
+  summarise(se_cc = var(value)^0.5, .groups = "drop")
+  
+aug_sehat = myresults %>%
+  subset(Method %in% c("acc","acc-lambda", "macc", "macc-lambda", "aipw", "aipw-lambda", "ipw", "mle")) %>%
+  dplyr::select(Method, n, beta0.x, beta1.x, beta2.x) %>%
+  reshape2::melt(id.vars = c("Method", "n"), variable.name = c("Parameter")) %>%
+  group_by(Method, n, Parameter) %>%
+  summarise(se_aug = var(value)^0.5, .groups = "drop")
+  
+emp_sehat = left_join(aug_sehat, cc_sehat, by = c("n", "Parameter")) %>%
+  mutate(myratio = se_aug/se_cc) %>%
+  mutate(type = "Empirical SE")
+
+
+
+## mean SE  
+cc_sehat <- myresults %>%
+  subset(Method %in% c("cc")) %>%
+  dplyr::select(Method, n, beta0.y, beta1.y, beta2.y) %>%
+  reshape2::melt(id.vars = c("Method", "n"), variable.name = c("Parameter")) %>%
+  group_by(Method, n, Parameter) %>%
+  summarise(se_cc = mean(value), .groups = "drop")
+  
+aug_sehat = myresults %>%
+  subset(Method %in% c("acc","acc-lambda", "macc", "macc-lambda", "aipw", "aipw-lambda", "ipw", "mle")) %>%
+  dplyr::select(Method, n, beta0.y, beta1.y, beta2.y) %>%
+  reshape2::melt(id.vars = c("Method", "n"), variable.name = c("Parameter")) %>%
+  group_by(Method, n, Parameter) %>%
+  summarise(se_aug = mean(value), .groups = "drop")
+  
+mean_sehat = left_join(aug_sehat, cc_sehat, by = c("n", "Parameter")) %>%
+  mutate(myratio = se_aug/se_cc) %>%
+  mutate(type = "Mean SE")
+
+colnames(mean_sehat) = colnames(emp_sehat)  
+myresults_sehat = rbind(mean_sehat, emp_sehat) %>%
+  mutate(Method.x = factor(Method.x, levels = c("ipw","mle","acc", "acc-lambda", "macc", "macc-lambda" , "aipw", "aipw-lambda"))) %>%
+  mutate(Parameter = ifelse(Parameter %in% c("beta0.y","beta0.x"), "beta0", ifelse(Parameter %in% c("beta1.y", "beta1.x"), "beta1", "beta2")))
+
+p3 <- myresults %>%
+  subset(Method.c %in% c("cc","acc", "macc", "ipw", "aipw", "mle")) %>%
+  select(Method, Method.c, beta0.x, beta1.x, beta2.x, n) %>%
+  reshape2::melt(id.vars = c("Method", "Method.c", "n"), variable.name = c("Parameter")) %>%
+  mutate(Parameter = factor(Parameter, levels = c("beta0.x", "beta2.x", "beta1.x"))) %>%
+  subset(Method != "mle-w" & n =="1000") %>%
+  mutate(Method = factor(Method, labels = c("CC", "IPW", "IPW, incorrect \u03C0(w,z)", "IPW, correct \u03C0(y,z)", 
+                                            "ACC", "ACC, incorrect \u03a8(y,z)", "ACC, incorrect \u03C0(y,z)", "ACC, incorrect \u03C0(y,z) and \u03a8(y,z)", "ACC with \u039b", "ACC with \u039b, incorrect \u03C0(y,z)",
+                                            "MACC", "MACC, incorrect \u03a8(y,z)", "MACC, , incorrect \u03C0(w,z)", "MACC, incorrect \u03C0(w,z) and \u03a8(y,z)", "MACC with \u039b", "MACC with \u039b, incorrect \u03C0(w,z)",
+                                            "AIPW", "AIPW, incorrect \u03a8(y,z)", "AIPW, , incorrect \u03C0(w,z)", "AIPW, incorrect \u03C0(w,z) and \u03a8(y,z)", "AIPW with \u039b", "AIPW with \u039b, incorrect \u03C0(w,z)", "MLE"))) %>%
+  ggplot(aes(y=value, x=Method, fill=Method.c)) +
+  geom_boxplot(outlier.color = "black", outlier.size = 0.2, position=position_dodge(.9)) +
+  stat_summary(fun=mean, colour="white", geom="point", shape=18, size=2, position=position_dodge(.9)) +
+  facet_grid(scales = "free",
+             #cols = vars(n), 
+             rows = vars(Parameter), 
+             labeller = labeller(Parameter = c(beta0.x = "Intercept: \u03B2\u2080=1", 
+                                               beta2.x = "A-X: \u03B2\u2081=3", 
+                                               beta1.x = "Z: \u03B2\u2082=2"), 
+                                type = c("Emprical SE", "Mean SE"))) +  # or any other appropriate label for `type`
+  geom_hline(data = . %>% filter(Parameter == "beta0.x"), aes(yintercept = 1), linetype = "dashed", color = "red") +
+  geom_hline(data = . %>% filter(Parameter == "beta2.x"), aes(yintercept = 3), linetype = "dashed", color = "red") +
+  geom_hline(data = . %>% filter(Parameter == "beta1.x"), aes(yintercept = 2), linetype = "dashed", color = "red") +
+  theme_bw() + theme(legend.position="bottom") +
+  theme(axis.text.x = element_text(angle = 70, vjust = 1, hjust=1, size = 10),
+        legend.text.align = 0,
+        axis.text.y = element_text(size=12)) +
+  guides(fill=guide_legend(nrow=1)) +
+  labs(x = "", y = TeX("Estimate"), fill = "Estimator", title = "Distribution of simulation results under dependent covariate right-censoring") +
+  scale_fill_manual(labels = c("CC", "IPW", "ACC", "MACC", "AIPW", "MLE"), 
+                    values = c("#000000","#E69F00","#56B4E9","#009E73",
+                               "#F0E442", "#0072B2")) 
+
+p3
+
+# save plot  
+ggsave(filename = "dependent-boxplots-combined.png",  width = 8, height = 9, dpi = 300, units = "in")
+  
+p4 <- myresults_sehat %>%
+  mutate(Parameter = factor(Parameter, levels = c("beta0", "beta2", "beta1"))) %>%
+  ggplot(aes(x=n, y=myratio, color=Method.x)) +
+  geom_point(size=2) +
+  geom_line(linewidth = 1) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "red") +
+  facet_grid(cols = vars(type), 
+             rows = vars(Parameter), 
+             labeller = labeller(Parameter = c(beta0 = "Intercept: \u03B2\u2080", 
+                                               beta2 = "A-X: \u03B2\u2081", 
+                                               beta1 = "Z: \u03B2\u2082"), 
+                                type = c("Emprical SE", "Mean SE"))) +  # or any other appropriate label for `type`
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  labs(title = "Efficiency comparative of estimators with the CC estimator for \ndependent covariate right-censoring",
+       y = expression("Efficiency Ratio (%) = " * SE[Method] / SE[CC]), 
+       color = "Estimator", 
+       x = "Sample size (n)") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_x_continuous(breaks = unique(myresults_sehat$n)) +
+  guides(color = guide_legend(nrow = 2)) +
+  scale_color_manual(labels = c("IPW", "MLE", "ACC", 
+                                expression("ACC with " * Lambda), 
+                                "MACC", 
+                                expression("MACC with " * Lambda), 
+                                "AIPW", 
+                                expression("AIPW with " * Lambda)), 
+                    values = c("#000000", "#E69F00", "#56B4E9", 
+                               "#009E73", "#F0E442", "#0072B2", 
+                               "#D55E00", "#CC79A7"))
+
+p2
+
+# save plot
+ggsave(filename = "dependent-efficiency.png",  width = 7, height = 9, dpi = 300, units = "in")
+```
+
+# Estimated nuisance parameters
+
+## Independent covariate right-censoring
+
+### Generate data
+
+Up to now we have explained how to recreate the simulation results when the nuisance distributions are known. This means that,
+
+-   For the IPW estimator, we assumed that the parameters governing the probabilities $\pi_{X,Z}(w,z)$ were known.
+-   For the ACC, MACC, AIPW estimator, we assumed that the parameters governing the probabilities $\pi_{Y,Z}(y,z)$ and $\pi_{X,Z}(x,z)$, and the augmented components were known.
+-   For the MLE, we assumed that the distribution $f_{X|Z}(x,z)$ was assumed known.
+
+Yet, in practice, these distributions are typically not assumed known and must be estimated. Following our data simulation strategy, we estimate the parameters from these distributions by finding the set of parameters $\alpha = (\mu_{X,C|Z}, \Sigma_{X,C|Z})$ that maximize the conditional bivariate normal distribution of $f_{W,\Delta|Z}$. In other words, we find
+
+$$\hat{\alpha} = \underset{\alpha}{\mathrm{argmax}} \sum_{i}^n\left\{\delta_i\log\int_{w_i}^{\infty}f_{C,X|Z}(c,x,z;\alpha)dc + (1-\delta_i)\log\int_{w_i}^{\infty}f_{C,X|Z}(c,x,z;\alpha) dx \right\}.$$
+
+As noted in the main manuscript, $\alpha$ is identifiable in our independent right-censored covariate setting as explained in the paper. We first proceed by estimating the regression parameters. First, we define a helper function that calculates the above
+
+```{r fig.width = 5, fig.height = 5}
+# generate data under independent covariate right censoring
+set.seed(0)
+dep_censoring. = FALSE
+dat = data_mvn(nSubjects = n, dep_censoring = dep_censoring.)
+
+logLik_noninf = function(myalpha, mydata){
+    
+    # density function
+    cxz_likelihood = function(w,delta,z){
+      
+      # 1. build my own bivariate density f(x,c|z)
+      mydmvnorm = function(xzc){
+        
+        # need these for integration components
+        meanXZ = myalpha[1] + myalpha[2]*xzc[2]
+        meanCZ = myalpha[3] + myalpha[4]*xzc[2]
+        sdXZ = myalpha[5]
+        sdCZ = myalpha[6]
+        
+        val = dnorm(xzc[1], mean = meanXZ, sd = sdXZ)*
+          dnorm(xzc[3], mean = meanCZ, sd = sdCZ) # C|X,Z 
+        return(val)
+      }
+      
+      # 2. Integrate components of X and C that are missing
+      dmvnorm_delta1 = function(t) unlist(lapply(t, function(tt) mydmvnorm(c(w,z,tt))))
+      dmvnorm_delta0 = function(t) unlist(lapply(t, function(tt) mydmvnorm(c(tt,z,w))))
+      mydensity = ifelse(delta==1,
+                         integrate(dmvnorm_delta1,lower = w, upper = Inf)$value,
+                         integrate(dmvnorm_delta0,lower = w, upper = Inf)$value)
+      return(mydensity)
+    }
+    
+    # integrate the density function above
+    myreturn = lapply(1:nrow(mydata),
+                      function(tt) cxz_likelihood(mydata$W[tt], mydata$D[tt], mydata$Z[tt])) %>%
+      unlist() %>% log() %>% sum()
+    return(myreturn)
+    
+} 
+
+# select values close to the oracle values: 
+g1 = c(0,0.5,0,0.5,0.86,1.94) + 0.1
+
+myoptim1 = optimx(
+  par = g1, # initial values for the parameters.
+  fn = function(x,X){logLik_noninf(myalpha = x,mydata = X)}, # log likelihood
+  X = dat,
+  method = "Nelder-Mead",
+  control = list(
+    trace = F, # higher number print more detailed output
+    maximize = T, # default is to minimize
+    abstol= 10^(-4)
+  )
+)
+  
+# print estimates 
+myalpha1 = unlist(myoptim1[1:6])
+myalpha1
+```
+
+Using these estimates, we will compute (i) probability of $X$ being observed, (ii) define the density $f_{X|Z}$ for the estimation of augmented component in the ACC, MACC and AIPW estimators, and (iii) define the density $f_{X|Z}$ for the MLE.
+
+```{R}
+# calculate the probability of X being observed
+myp = function(myalpha,data){
+    meanCZ = myalpha[3] + myalpha[4]*dat$Z
+    sdCZ = myalpha[6]
+    myphat = pnorm(data$W, mean = meanCZ, sd = sdCZ, lower.tail = FALSE)
+    return(myphat)
+}
+
+dat$myp_xz_mle = myp(myalpha1,dat)
+
+# scatter plot of oracle vs estimated probabilities
+dat %>%
+  mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>% 
+  ggplot(aes(x= myp_xz_mle ,y=myp_xz, colour =D)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Scatter plot of oracle vs. estimated \u03C0(w,z) ", y = "oracle", x = "estimated", colour = "") +
+  theme(legend.position="bottom")
+```
+
+As we can observe, the probability estimates for when $X$ is observed (i.e., $\delta=1$) resemble the oracle probabilities. In fact the pearson correlation between the oracle and the estimated probabilities is equal to `r round(cor(dat$myp_xz_mle[dat$D==1], dat$myp_xz[dat$D==1]),2)`. We now investigate the linear fit of $X$ and the estimated $f_{X|Z}$ distribution.
+
+```{R fig.width = 5, fig.height = 5}
+# oracle X|Z values
+dat$meanXZ = 0 + 0.5/1*(dat$Z-0) # mu_x + (var_xz/var_z)*(data.$Z-mu_z)
+
+#estimated X|Z values
+dat$meanXZ_hat = myalpha1[1] + myalpha1[2]*dat$Z
+
+# scatter plot of oracle vs estimated probabilities
+dat %>%
+  ggplot(aes(x= meanXZ_hat ,y=meanXZ))+
+  geom_point() +
+  labs(title = "Scatter plot of oracle vs. estimated \nvalues of X conditional on Z ", x = "Estimated", y = "Oracle", colour = "") +
+  ylim(-2,2) + xlim(-2,2)
+```
+
+As plotted above, the estimated distribution of $X$ conditional on $Z$ results in near identical values when compared to the oracle values. We take a similar approach to computing the probabilities $\pi_{Y,Z}(y,z)$. After calculating the integral $\pi_{Y,Z}(X,Z) = \int \pi_{X,Z}(x,z) f_{X|Y,Z}(x,y,z) dx$, where $\pi_{X,Z}(x,z)$ are the estimated probabilities from the previous step, the estimated probabilities are closely linearly associated with the oracle probabilities as shown below.
+
+```{R fig.width = 5, fig.height = 5}
+myp_yz.b = function(myalpha, data){
+
+  meanXZ = myalpha[1] + myalpha[2]*data$Z
+  sdXZ = myalpha[5]  
+  meanCZ = myalpha[3] + myalpha[4]*data$Z
+  sdCZ = myalpha[6]
+
+  integral_func_num.b = function(t){
+    val = rep(NA, length(t))
+    for (i in 1:length(t)){
+      myp = pnorm(t[i], mean = meanCZ, sd = sdCZ, lower.tail = FALSE)
+      val[i] = myp*
+        dnorm(data$y -  cbind(1,data$Z,data$A - t[i])%*%theta[1:3], 0, sd = theta[4])*
+        dnorm(t[i], mean = meanXZ, sd = sdXZ)
+    }
+    return(val)
+  }
+  myp_yz_num = integrate(integral_func_num.b, lower = -Inf, upper = Inf, 
+                     rel.tol = 1e-7, abs.tol = 1e-7)$value
+  
+  integral_func_denom.b = function(t){
+    val = rep(NA, length(t))
+    for (i in 1:length(t)){
+      val[i] = dnorm(data$y -  cbind(1,data$Z,data$A - t[i])%*%theta[1:3], 0, sd = theta[4])*
+        dnorm(t[i], mean = meanXZ, sd = sdXZ)
+    }
+    return(val)
+  }
+  myp_yz_denom = integrate(integral_func_denom.b, lower = -Inf, upper = Inf, rel.tol = 1e-7, abs.tol = 1e-7)$value
+  return(myp_yz_num/myp_yz_denom)
+} 
+
+dat$myp_yz_est = lapply(1:nrow(dat), function(t.) myp_yz.b(myalpha1,dat[t.,])) %>% unlist()
+
+# scatter plot of oracle vs estimated probabilities
+dat %>%
+  ggplot(aes(x= myp_yz_est ,y=myp_yz))+
+  geom_point() +
+  labs(title = "Scatter plot of oracle vs. estimated probabilities \u03C0(y,z) ", x = "Estimated", y = "Oracle") +
+  theme(legend.position="bottom")  
+```
+
+### Estimate parameters
+
+Now that we have estimated the nuisance parameters, we will now use these to compute the probability of $X$ being observed (i.e., $\pi_{X,Z}(x,z)$ and $\pi_{Y,Z}(y,z)$), and to define the mean and standard deviation of $f_{X|Z}(x,z)$ for the MLE estimator.
+
+```{R include = TRUE}
+dat$myp_xz = dat$myp_xz_mle
+dat$myp_yz = dat$myp_yz_est
+
+tic()
+##################################
+# Oracle
+est00 = estimate_beta(data_yXZ = dat, model = y ~ AX + Z) # oracle
+
+# Naive
+est10 = estimate_beta(data_yXZ = dat, model = y ~ AW + Z) # naive
+
+# CC
+est20 = estimate_beta_cc(data_yXZ = dat, model = y ~ AW + Z) # CC
+
+# IPW
+est30 = estimate_beta_ipw(data_yXZ = dat, model = y ~ AW+Z, myweight = "oracle") # oracle 
+est30_updatedSE = var_beta_ipw(data_yXZ=dat, mytheta= est30$beta_est, myalpha = myalpha1)
+
+# MLE
+est40 = estimate_beta_likelihood_hat(data_yXZ = dat, model = y ~ AW+Z, myalpha = myalpha1) 
+est40_updatedSE = var_beta_likelihood(data_yXZ=dat, mytheta= est40$beta_est, myalpha = myalpha1)
+
+# MACC
+est60 = estimate_beta_macc_lambda_close(dat, y ~ AW+Z, myweight = "oracle")
+est60_updatedSE = var_beta_macc_lambda(data_yXZ=dat, mytheta= est60$beta_est, myalpha = myalpha1)
+
+# AIPW
+est70 = estimate_beta_aipw_lambda_close(dat, y ~ AW+Z, myweight = "oracle")
+est70_updatedSE = var_beta_aipw_lambda(data_yXZ=dat, mytheta= est70$beta_est, myalpha = myalpha1)
+
+toc()
+
+# combine results
+
+myreturn = data.frame(cbind(c("oracle","naive", "cc", "ipw", "macc", "aipw"),
+                            # beta estimates + sigma
+                            rbind(est00$beta_est,est10$beta_est,est20$beta_est,
+                                  est30$beta_est, est60$beta_est, est70$beta_est),
+                            # standard error estimates
+                            rbind(est00$se_est,est10$se_est,est20$se_est,
+                                  est30$se_est, est60$se_est, est70$se_est),
+                            # updated standard error estimates
+                            rbind(est00$se_est,est10$se_est,est20$se_est,
+                                  est30_updatedSE$se_updated, 
+                                  est60_updatedSE$se_updated, 
+                                  est70_updatedSE$se_updated)
+  ))
+
+colnames(myreturn) = c("Method",
+                        "beta0.x", "beta1.x", "beta2.x","sigma.x",
+                        "beta0.y", "beta1.y", "beta2.y",
+                        "beta0.updated", "beta1.updated", "beta2.updated")
+  
+
+myreturn_mle = data.frame(cbind(c("mle"),
+                            rbind(est40$beta_est),
+                            rbind(est40$se_est),
+                            rbind(est40_updatedSE$se_updated)))
+
+colnames(myreturn_mle) = colnames(myreturn)
+
+myreturn = rbind(myreturn, myreturn_mle)
+paged_table(myreturn)
+```
+
+### Simulation study results
+
+Similarly, we computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/). These results, were then saved and analyzed individually. Instead of running 3,000 simulation locally, we have included the simulation results in this repository. We now load these and replicate the results presented in manuscript.
+
+```{R}
+# Load files from Dependent folder
+# Sample size 100
+list_est <- list.files(path = paste0("../01-Data/Estimated nuisance parameters/Independent/1000-Lambda-hat"), pattern = "est_results*", full.names = T)
+myresults_a = readmysims(list_est, 1000)
+myresults_a = myresults_a %>%
+  subset(Method %in% c("oracle","cc", "naive", "ipw-hat", "acc-lambda-hat", "aipw-lambda-hat")) %>%
+  mutate(Method = ifelse(Method == "acc-lambda-hat", "macc-lambda", Method)) %>%
+  mutate(Method = ifelse(Method == "aipw-lambda-hat", "aipw-lambda", Method)) %>%
+  mutate(Method = ifelse(Method == "ipw-hat", "ipw", Method))
+  
+list_est <- list.files(path = paste0("../01-Data/Estimated nuisance parameters/Independent/1000-MLE-hat"), pattern = "est_results*", full.names = T)  
+myresults_b = readmysims(list_est, 1000)
+myresults_b = myresults_b %>%subset(Method == "mle")
+
+# combine and format
+myresults = rbind(myresults_a, myresults_b) %>%
+             mutate(Method = factor(Method, levels = c("oracle", "cc", "naive", "ipw", "macc-lambda", "aipw-lambda", "mle")))
+```
+
+After the jobs have been completed, we can compute the mean estimate of $\theta$ (i.e., $N^{-1}\sum_{i=1}^N\hat{\theta}_i$) and its percent bias (i.e., $N^{-1}\sum_{i=1}^N (\hat{\theta}_i-\theta_0)/\theta_0$); the empirical standard deviation of $\hat\theta$ across all simulations; and the empirical mean of the estimated standard error (i.e., $N^{-1}\sum_{i=1}^{N} \hat{\rm SE}_i$). Estimated standard errors were computed using the asymptotic variances derived in our theorems, with all expectations replaced by empirical averages. Lastly, we can calculate the empirical coverage of the estimated 95% confidence intervals.
+
+```{R}
+myresults = myresults %>% 
+  mutate(beta0.x = as.numeric(beta0.x),
+         beta1.x = as.numeric(beta1.x),
+         beta2.x = as.numeric(beta2.x),
+         sigma.x = as.numeric(sigma.x),
+         beta0.y = as.numeric(beta0.y),
+         beta1.y = as.numeric(beta1.y),
+         beta2.y = as.numeric(beta2.y)) %>%
+  # subset only those simulations that
+  filter(abs(beta0.x-theta[1])/theta[1] < est_threshold &
+           abs(beta1.x-theta[2])/theta[2] < est_threshold &
+           abs(beta2.x-theta[3])/theta[3] < est_threshold &
+           abs(sigma.x-theta[4])/theta[4] < est_threshold) %>%
+  na.omit()
+
+# Calculate bias 
+myresults$beta0_coverage <- ((myresults$beta0.x + qnorm(0.975)*myresults$beta0.y) >= theta[1]) & 
+  ((myresults$beta0.x - qnorm(0.975)*myresults$beta0.y) <= theta[1])
+myresults$beta1_coverage <- ((myresults$beta1.x + qnorm(0.975)*myresults$beta1.y) >= theta[2]) & 
+  ((myresults$beta1.x - qnorm(0.975)*myresults$beta1.y) <= theta[2])
+myresults$beta2_coverage <- ((myresults$beta2.x + qnorm(0.975)*myresults$beta2.y) >= theta[3]) & 
+  ((myresults$beta2.x - qnorm(0.975)*myresults$beta2.y) <= theta[3])
+
+# mean estimates
+myresults_est = myresults %>% 
+  dplyr::select(Method,n,beta0.x, beta1.x, beta2.x, sigma.x) %>%
+  group_by(Method, n) %>%
+  summarise_all(function(x) mean(as.numeric(x)) %>% round(2))
+myresults_est %>% paged_table()
+
+# mean SE
+myresults_se = myresults %>%
+  dplyr::select(Method,n,beta0.y, beta1.y, beta2.y) %>%
+  group_by(Method,n) %>%
+  summarise_all(function(x) mean(as.numeric(x)*100) %>% round(2))
+myresults_se  %>% paged_table()
+
+# empirical SE
+myresults_sehat = myresults %>%
+  dplyr::select(Method,n,beta0.x, beta1.x, beta2.x, sigma.x) %>%
+  group_by(Method,n) %>%
+  summarise_all(function(x) round(100*var(as.numeric(x))^0.5, 5) %>% round(2))
+myresults_sehat  %>% paged_table()
+
+# coverage probabilities
+myresults_coverage = myresults %>%
+  dplyr::select(Method,n, beta0_coverage, beta1_coverage, beta2_coverage) %>%
+  mutate(beta0_coverage = ifelse(beta0_coverage, 1, 0),
+         beta1_coverage = ifelse(beta1_coverage, 1, 0),
+         beta2_coverage = ifelse(beta2_coverage, 1, 0)) %>%
+  group_by(Method,n) %>%
+  summarise_all(function(x) round(mean(x)*100,2))
+myresults_coverage  %>% paged_table()
+```
+
+We can also create a similar figure,
+
+```{R fig.width = 7, fig.height = 9}
+p5 <- myresults %>%
+  subset(Method %in% c("cc", "macc-lambda", "ipw", "aipw-lambda", "mle")) %>%
+  select(Method, beta0.x, beta1.x, beta2.x) %>%
+  reshape2::melt(id.vars = c("Method"), variable.name = c("Parameter")) %>%
+  mutate(Parameter = factor(Parameter, levels = c("beta0.x", "beta2.x", "beta1.x"))) %>%
+  mutate(Method = factor(Method, labels = c("CC", "IPW", "MACC with \u039b", "AIPW with \u039b", "MLE"))) %>%
+  ggplot(aes(y=value, x=Method, fill=Method)) +
+  geom_boxplot(outlier.color = "black", outlier.size = 0.2, position=position_dodge(.9)) +
+  stat_summary(fun=mean, colour="white", geom="point", shape=18, size=2, position=position_dodge(.9)) +
+  facet_grid(scales = "free",
+             rows = vars(Parameter), 
+             labeller = labeller(Parameter = c(beta0.x = "Intercept: \u03B2\u2080=1", 
+                                               beta2.x = "A-X: \u03B2\u2081=3", 
+                                               beta1.x = "Z: \u03B2\u2082=2"), 
+                                type = c("Emprical SE", "Mean SE"))) +  # or any other appropriate label for `type`
+  geom_hline(data = . %>% filter(Parameter == "beta0.x"), aes(yintercept = 1), linetype = "dashed", color = "red") +
+  geom_hline(data = . %>% filter(Parameter == "beta2.x"), aes(yintercept = 3), linetype = "dashed", color = "red") +
+  geom_hline(data = . %>% filter(Parameter == "beta1.x"), aes(yintercept = 2), linetype = "dashed", color = "red") +
+  theme_bw() + theme(legend.position="bottom") +
+  theme(axis.text.x = element_text(angle = 70, vjust = 1, hjust=1, size = 10),
+        legend.text.align = 0,
+        axis.text.y = element_text(size=12)) +
+  guides(fill=guide_legend(nrow=1)) +
+  labs(x = "", y = TeX("Estimate"), fill = "Estimator", title = "Distribution of simulation results under dependent covariate right-censoring") +
+  scale_fill_manual(labels = c("CC", "IPW", "MACC", "AIPW", "MLE"), 
+                    values = c("#000000","#E69F00","#009E73",
+                               "#F0E442", "#0072B2")) 
+
+p5
+
+# save plot  
+ggsave(filename = "dependent-boxplots-combined-estimated.png",  width = 8, height = 9, dpi = 300, units = "in")
+```
+
+## Dependent covariate right-censoring
+
+### Generate data
+
+To address the dependent covariate right-censoring problem, we adopt the data simulation scenario from Bartlette et al. (2024). However, we modify the simulation so that after calculating the missing data indicator, we compute $C = X - beta\{exp(Z), 1\}$. The function below can be used to generate the data.
+
+```{r fig.width = 5, fig.height = 5}
+# generate data under independent covariate right censoring
+set.seed(0)
+dep_censoring. = FALSE
+dat = data_mvn_bartlette(nSubjects = n)
+
+head(dat) %>% paged_table()
+```
+
+The scatter plot shown below depicts the distribution of the outcome $y$ and $Z$, and how their values are associated with probability $\pi_{Y,Z}(y,z)$. That is, higher values of $Z$ and lower values of $y$ are associated with a higher probability of observing $X$.
+
+```{r fig.width = 5, fig.height = 5}
+glm(formula = D ~ y + Z, family = binomial(link = "logit"), data = dat)
+
+dat %>%
+  mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>% 
+  ggplot(aes(x=Z ,y=y, colour =myp_yz)) +
+  geom_point() +
+  # geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Scatter plot of Y vs. Z", y = "y", x = "Z", colour = "Probability \u03C0(y,z)") +
+  theme(legend.position="bottom")
+```
+
+### Estimate parameters
+
+We can generate 3000 datasets using the following code. Then we save it as `acc_example_stata.csv`.
+
+```{R eval = FALSE}
+#################################################################
+# generate multiple datasets and save as "acc_example_stata.csv"
+#################################################################
+set.seed(0); dat = data_mvn(1000)
+dat$sim = 0
+for (i in 1:3000) {
+  set.seed(i)
+  dat_temp = data_mvn(1000); dat_temp$sim = i
+  dat = rbind(dat, dat_temp)
+}
+dat = dat %>%
+  rename(R=D) %>%
+  mutate(Xmiss = ifelse(R==1, X, NA)) %>%
+  select(y,X,Xmiss,Z,R,sim)
+write.csv(dat, "acc_example_stata.csv", row.names = FALSE, na = "")
+```
+
+After the data is generated, we use the `augcc` command in STATA to compute the parameter estimates. The following STATA commands were used to compute the parameter estimates for the regression model. The command estimates the probabilities $\pi_{Y,Z}(y,z)$ using logistic regression and uses these estimates to estimate the ACC estimator with $\Lambda$. This process was computed for each of the individual data sets generated.
+
+```         
+// stata do file to estimate parameters of interest
+clear
+import delimited "acc_example_stata.csv"
+
+keep if sim == `1'
+
+gen imp1 = rnormal(0,1)
+gen imp2 = rnormal(0,1)
+gen imp3 = rnormal(0,1)
+gen imp4 = rnormal(0,1)
+gen imp5 = rnormal(0,1)
+gen imp6 = rnormal(0,1)
+gen imp7 = rnormal(0,1)
+gen imp8 = rnormal(0,1)
+gen imp9 = rnormal(0,1)
+gen imp10 = rnormal(0,1)
+gen imp11 = rnormal(0,1)
+gen imp12 = rnormal(0,1)
+gen imp13 = rnormal(0,1)
+gen imp14 = rnormal(0,1)
+gen imp15 = rnormal(0,1)
+gen imp16 = rnormal(0,1)
+gen imp17 = rnormal(0,1)
+gen imp18 = rnormal(0,1)
+gen imp19 = rnormal(0,1)
+gen imp20 = rnormal(0,1)
+gen imp21 = rnormal(0,1)
+gen imp22 = rnormal(0,1)
+gen imp23 = rnormal(0,1)
+gen imp24 = rnormal(0,1)
+gen imp25 = rnormal(0,1)
+gen imp26 = rnormal(0,1)
+gen imp27 = rnormal(0,1)
+gen imp28 = rnormal(0,1)
+gen imp29 = rnormal(0,1)
+gen imp30 = rnormal(0,1)
+
+
+// correct weight 
+augcca z, y(y) x(xmiss) imps(imp1-imp30) pivars(y z) 
+
+// incorrect weight specification
+augcca z, y(y) x(xmiss) imps(imp1-imp30) pivars(z)
+```
+
+### Simulation study results
+
+Similarly, we computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/) and saved in this repository. We load the simulation results and replicate the results presented in manuscript.
+
+```{r echo = T, results = 'hide'}
+## Misspecified model
+mypath = paste0("../01-Data/Estimated nuisance parameters/Dependent/1000-ACC-STATA")
+list_est <- list.files(path = mypath, pattern = "augacc_z_mysim*", full.names = T)
+myresults <-  list_est %>% map_df(function(x) read_excel(x, col_names = FALSE))
+myresults_est <- myresults[4*(1:length(list_est))-3, ]
+myresults_se <- myresults[-(4*(1:length(list_est))-3), ]
+myresults_se_temp <- matrix(nrow=1, ncol=3)
+for (i in 1:length(list_est)){
+    temp = myresults_se[(i*3-2):(i*3),]
+    myresults_se_temp = rbind(myresults_se_temp, 
+        cbind(as.numeric(temp[1,1]), as.numeric(temp[2,2]), as.numeric(temp[3,3])))
+}
+myresults_se = myresults_se_temp[-1,]^0.5
+theta = c(0,0.2,0.2,0.95)
+myresults_z = cbind(myresults_est, myresults_se)
+myresults_z$Method = "acc-z" 
+
+## Correct model
+list_est <- list.files(path = mypath, pattern = "augacc_y z_mysim*", full.names = T)
+myresults <-  list_est %>% map_df(function(x) read_excel(x, col_names = FALSE))
+myresults_est <- myresults[4*(1:length(list_est))-3, ]
+myresults_se <- myresults[-(4*(1:length(list_est))-3), ]
+myresults_se_temp <- matrix(nrow=1, ncol=3)
+for (i in 1:length(list_est)){
+    temp = myresults_se[(i*3-2):(i*3),]
+    myresults_se_temp = rbind(myresults_se_temp, 
+        cbind(as.numeric(temp[1,1]), as.numeric(temp[2,2]), as.numeric(temp[3,3])))
+}
+myresults_se = myresults_se_temp[-1,]^0.5
+theta = c(0,0.2,0.2,0.95)
+myresults_yz = cbind(myresults_est, myresults_se)
+myresults_yz$Method = "acc-yz" 
+
+## combine both models
+myresults = rbind(myresults_yz, myresults_z)
+colnames(myresults) = c("beta1.x", "beta2.x", "beta0.x", "beta1.y", "beta2.y", "beta0.y", "Method")
+
+paged_table(myresults)
+```
+
+```{R}
+# Calculate bias 
+myresults$beta0_coverage <- ((myresults$beta0.x + qnorm(0.975)*myresults$beta0.y) >= theta[1]) & 
+  ((myresults$beta0.x - qnorm(0.975)*myresults$beta0.y) <= theta[1])
+myresults$beta1_coverage <- ((myresults$beta1.x + qnorm(0.975)*myresults$beta1.y) >= theta[2]) & 
+  ((myresults$beta1.x - qnorm(0.975)*myresults$beta1.y) <= theta[2])
+myresults$beta2_coverage <- ((myresults$beta2.x + qnorm(0.975)*myresults$beta2.y) >= theta[3]) & 
+  ((myresults$beta2.x - qnorm(0.975)*myresults$beta2.y) <= theta[3])
+
+# mean estimates
+myresults_est = myresults %>% 
+  dplyr::select(Method,beta0.x, beta1.x, beta2.x) %>%
+  group_by(Method) %>%
+  summarise_all(function(x) mean(as.numeric(x)) %>% round(2))
+myresults_est %>% paged_table()
+
+# mean SE
+myresults_se = myresults %>%
+  dplyr::select(Method,beta0.y, beta1.y, beta2.y) %>%
+  group_by(Method) %>%
+  summarise_all(function(x) mean(as.numeric(x)*100) %>% round(2))
+myresults_se  %>% paged_table()
+
+# empirical SE
+myresults_sehat = myresults %>%
+  dplyr::select(Method,beta0.x, beta1.x, beta2.x) %>%
+  group_by(Method) %>%
+  summarise_all(function(x) round(100*var(as.numeric(x))^0.5, 5) %>% round(2))
+myresults_sehat  %>% paged_table()
+
+# coverage probabilities
+myresults_coverage = myresults %>%
+  dplyr::select(Method, beta0_coverage, beta1_coverage, beta2_coverage) %>%
+  mutate(beta0_coverage = ifelse(beta0_coverage, 1, 0),
+         beta1_coverage = ifelse(beta1_coverage, 1, 0),
+         beta2_coverage = ifelse(beta2_coverage, 1, 0)) %>%
+  group_by(Method) %>%
+  summarise_all(function(x) round(mean(x)*100,2))
+myresults_coverage  %>% paged_table()
+```

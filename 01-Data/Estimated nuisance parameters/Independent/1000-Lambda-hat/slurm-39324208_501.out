@@ -1,0 +1,34 @@
+SLURM_JOBID:  39328200
+SLURM_ARRAY_TASK_ID:  501
+SLURM_ARRAY_JOB_ID:  39324208
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: ‘geex’
+
+The following object is masked from ‘package:methods’:
+
+    show
+
+[1] 1000
+Maximizing -- use negfn and neggr
+[1] "A is done"
+             [,1]        [,2]         [,3]
+[1,]  0.036480831 0.010222013 0.0304030682
+[2,] -0.001427108 0.002288934 0.0001408359
+[3,]  0.093248557 0.033128783 0.0913143217
+[1] "A is done"
+              [,1]        [,2]         [,3]
+[1,]  0.0056834933 0.003433179  0.002286715
+[2,] -0.0003364761 0.005016597 -0.003000892
+[3,]  0.1163899103 0.038929872  0.135996362
+13872.417 sec elapsed

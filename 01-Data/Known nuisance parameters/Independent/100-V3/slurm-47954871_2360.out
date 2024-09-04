@@ -1,0 +1,29 @@
+SLURM_JOBID:  47964373
+SLURM_ARRAY_TASK_ID:  2360
+SLURM_ARRAY_JOB_ID:  47954871
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: ‘geex’
+
+The following object is masked from ‘package:methods’:
+
+    show
+
+[1] 100
+[1] 0.47
+[1] "starting acc"
+[1] "starting macc"
+Error in integrate(integral_func_denom, lower = -mybound, upper = mybound,  : 
+  the integral is probably divergent
+Calls: estimate_beta_macc ... FUN -> do.call -> <Anonymous> -> psi_hat_i -> integrate
+Execution halted

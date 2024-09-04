@@ -1,0 +1,35 @@
+SLURM_JOBID:  39543723
+SLURM_ARRAY_TASK_ID:  723
+SLURM_ARRAY_JOB_ID:  39542290
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: ‘geex’
+
+The following object is masked from ‘package:methods’:
+
+    show
+
+[1] 1000
+Maximizing -- use negfn and neggr
+[1] "starting mle"
+Warning message:
+In stode(y, times, func, parms = parms, ...) : steady-state not reached
+10142.835 sec elapsed
+$beta_est
+                                psi_updated
+[1,] 0.9675378 1.984663 2.99154    1.019544
+
+$se_est
+          [,1]       [,2]       [,3]
+[1,] 0.0473067 0.05028496 0.03509972
+

@@ -122,11 +122,11 @@ legend("topright", legend = paste("Mean =", round(c_mean, 2), "\nSD =", round(c_
 par(mfrow = c(1, 1)) # Reset the plotting parameters to default
 ```
 
-In addition to these, we have the oracle probability of observing $X$ defined by $\pi_{X,Z}(w,z)$. The oracle values of this probability distribution become smaller the larger $W$ becomes since a larger a higher value of $X$ correspond to a higher probability that $X$ is censored. This relationship can be observed from the following plot:
+In addition to these, we plot the oracle probability of observing $X$, defined by $\pi_{X,Z}(w,z)$. The probability values become smaller the larger $X$ is  since a larger value of $X$ correspond to a higher probability that $X$ is censored (blue scatter plot). 
 
 ```{R}
 # Set up the plotting area to have 1 row and 2 columns
-par(mfrow = c(1, 2))
+par(mfrow = c(1, 1))
 
 # scatter plot for pi(w,z)
 dat %>%
@@ -138,7 +138,7 @@ dat %>%
   theme(legend.position="bottom")
 ```
 
-The values for the probability defined by $(Y,Z)$ are similar to those defined by $(W,Z)$. In fact the correlation between these values is `r round(cor(dat$myp_xz, dat$myp_yz), 2)`. Thus, while not the same these probability values are close.
+Additionally, we can plot the probability of $X$ being observed as a function of $(Y,Z)$, i.e., $\pi_{Y,Z}(y,z)$. The values for the probability $\pi_{Y,Z}(y,z)$ are similar to those defined by $(W,Z)$. In fact the correlation between these values is `r round(cor(dat$myp_xz, dat$myp_yz), 2)`. Thus, while not the same these probability values are close.
 
 ```{R}
 # scatter plot for pi(y,z)
@@ -153,7 +153,7 @@ dat %>%
 
 ### Estimate parameters
 
-Now that we have generated the data, we will now estimate the linear regression parameters and their corresponding standard error estimates. Before that, we will need to calculate some probabilities from a uniform distribution in order to misspecify the probability of $X$ being observed. Estimates from one simulation can be obtained using the following code:
+Now that we have generated the data, we will now estimate the linear regression parameters $\btheta$ and their corresponding standard error estimates. Before that, we will need to calculate some probabilities from a uniform distribution in order to misspecify the probability of $X$ being observed for the IPW, ACC, MACC and AIPW estimators . Estimates from one simulation can be obtained using the following code:
 
 ```{R, eval = FALSE}
 tic()
@@ -254,7 +254,7 @@ myresults = parallel::mclapply(1:3, function(x) simcalc(x, dep_censoring. = dep_
 toc()
 ```
 
-Instead of using `parallel::mclapply()`, one may also us `lapply()` to process the jobs. The only benefit of `parallel::mclapply()` is that the jobs are completed faster. What was done in the research paper is that each simulation was sent separately to the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/), where up to 800 jobs can run simultaneously. These results, were then saved and analyzed individually. Instead of running 3,000 simulation, we have included the simulation results in this repository. We now load these and replicate the results presented in manuscript.
+Instead of using `parallel::mclapply()`, one may also us `lapply()` to process the jobs. The only benefit of `parallel::mclapply()` is that the jobs are completed faster. What was done in the research paper is that each simulation was sent separately to the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/), where all jobs where submitted simultaneously. These results, were then saved and analyzed individually. We have included the simulation results in this repository. We now load these and replicate the results presented in manuscript.
 
 ### Simulation study results
 
@@ -377,7 +377,7 @@ myresults_coverage = myresults %>%
 myresults_coverage  %>% paged_table()
 ```
 
-We can also recreate the figures, as presented in the Supplementary Materials.
+We can also recreate the figures, as presented in the **Supplementary Material Section S.5**.
 
 ```{R fig.width = 7, fig.height = 9}
 ## efficiency plots

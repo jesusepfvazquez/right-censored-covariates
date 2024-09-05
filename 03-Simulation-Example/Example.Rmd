@@ -40,7 +40,7 @@ library(tidyverse)
 
 # Introduction
 
-In this tutorial, you will learn how, under the presence of a right censored covariance, we can simulate data and estimate the linear regression parameters as discussed in the paper "**Establishing the Parallels and Differences Between Right-Censored and Missing Covariates"** found here [Link](google.com). More specifically, in this tutorial you will health how to use the `data_mvn()` function to generate data and estimate the parameters of interest using the complete case (CC), inverse probability weighting (IPW), maximum likelihood (MLE), augmented CC (ACC), modified ACC (MACC), or/and the augmented IPW (AIPW) estimator. The GitHub repository for this tutorial can be accessed at [GitHub](https://github.com/jesusepfvazquez/right-censored-covariates).
+In this tutorial, you will learn how, under the presence of a right-censored covariance, we can simulate data and estimate the linear regression parameters as discussed in the paper "**Establishing the Parallels and Differences Between Right-Censored and Missing Covariates"** found here [Link](google.com). More specifically, in this tutorial, you will health how to use the `data_mvn()` function to generate data and estimate the parameters of interest using the complete case (CC), inverse probability weighting (IPW), maximum likelihood (MLE), augmented CC (ACC), modified ACC (MACC), or/and the augmented IPW (AIPW) estimator. The GitHub repository for this tutorial can be accessed at [GitHub](https://github.com/jesusepfvazquez/right-censored-covariates).
 
 Throughout, we are interested in the linear regression model
 
@@ -48,7 +48,7 @@ $$
 y_i = \beta_0 + \beta_1 (A_i-X_i) + \beta_2 Z_i + \epsilon_i
 $$
 
-where $y_i$ represents the outcome, $A_i$ the current age, $X_i$ the age at diagnosis, $A_i - X_i$ the time to clinical diagnosis, $Z_i$ the fully observed covariate, and $\epsilon_i \sim N(0,\sigma^2)$ . The data also provides $W_i = min (X_i,C_i)$ where $C_i$ is the random right-censoring variable, and $W_i$ is the observed event time. The variable $D_i = I(X_i \leq C_i)$ is equal to $1$ if the observed event time is equal to age at clinical diagnosis, and $0$ if otherwise. The objective is to estimate The goal is to estimate $\theta = (\beta_0, \beta_1, \beta_2, \sigma)$ using the observed data $O = (Y,W,\Delta,Z)$. We refer the reader to the **Supplementary Material Section S.5** for the exact details of the data simulation process, as well as the main paper for more details of the estimators and their robustness and efficiency properties.
+where $y_i$ represents the outcome, $A_i$ the current age, $X_i$ the age at diagnosis, $A_i - X_i$ the time to clinical diagnosis, $Z_i$ the fully observed covariate, and $\epsilon_i \sim N(0,\sigma^2)$ . The data also provides $W_i = min (X_i,C_i)$ where $C_i$ is the random right-censoring variable, and $W_i$ is the observed event time. The variable $D_i = I(X_i \leq C_i)$ equals $1$ if the observed event time equals age at clinical diagnosis, and $0$ if otherwise. The objective is to estimate The goal is to estimate $\theta = (\beta_0, \beta_1, \beta_2, \sigma)$ using the observed data $O = (Y,W,\Delta,Z)$. Please refer to the **Supplementary Material Section S.5** for the exact details of the data simulation process and the main paper for more details of the estimators and their robustness and efficiency properties.
 
 This vignette is divided into two main sections, each with two subsections. First, we will guide you through the process when the nuisance parameters are known, covering both independent and dependent covariate right-censoring. We will then repeat the process for when the nuisance parameters need to be estimated. Throughout, we assume that $Y \perp C | X,Z$. The structure of this vignette is as follows:
 
@@ -70,10 +70,10 @@ This vignette is divided into two main sections, each with two subsections. Firs
 
 ### Generate data
 
-The `data_mvn()` function generates data from a trivariate normal distribution. The trivariate normal distribution is used so that we can generate data under independent or dependent covariate right-censoring. The inputs of the function are as follows,
+The `data_mvn()` function generates data from a trivariate normal distribution. The trivariate normal distribution is used to generate data under independent or dependent covariate right-censoring. The inputs of the function are as follows,
 
 -   `nSubjects = Integer`, this is the total number of observations
--   `dep_censoring = TRUE or FALSE`, if `FALSE` the partial correlation of (X,C) given Z is equal to zero. If `TRUE`, this partial correlation is not equal to zero.
+-   `dep_censoring = TRUE or FALSE`, if `FALSE` the partial correlation of $(X,C)$ given $Z$ equals zero. If `TRUE`, this partial correlation is not equal to zero.
 
 In the following example, we simulate a sample size of 1,000 under non-independent covariate right-censoring. As noted in the **Supplementary Material Section S.5** to the paper "**Establishing the Parallels and Differences Between Right-Censored and Missing Covariates"**, the oracle mean and standard deviation of the distribution for $X$ are 0 and 1. For $C$, these values are 0 and 2.
 
@@ -95,7 +95,7 @@ Under independent covariate right-censoring we assume that $X \perp C | Z$. We c
 marginal_cor = dat %>% select(X,C,Z) %>% cor() %>% round(2)
 marginal_cor
 
-# check partial correlation between (X,C) given Z
+# check the partial correlation between (X,C) given Z
 partial_cor = dat %>% select(X,C,Z) %>% ppcor::pcor() 
 partial_cor$estimate %>% round(2)
 ```
@@ -122,7 +122,7 @@ legend("topright", legend = paste("Mean =", round(c_mean, 2), "\nSD =", round(c_
 par(mfrow = c(1, 1)) # Reset the plotting parameters to default
 ```
 
-In addition to these, we plot the oracle probability of observing $X$, defined by $\pi_{X,Z}(w,z)$. The probability values become smaller the larger $X$ is  since a larger value of $X$ correspond to a higher probability that $X$ is censored (blue scatter plot). 
+In addition to these, we plot the oracle probability of observing $X$, defined by $\pi_{X,Z}(w,z)$. The probability values become smaller the larger $X$ is  since a larger value of $X$ corresponds to a higher probability that $X$ is censored (blue scatter plot). 
 
 ```{R}
 # Set up the plotting area to have 1 row and 2 columns
@@ -138,7 +138,7 @@ dat %>%
   theme(legend.position="bottom")
 ```
 
-Additionally, we can plot the probability of $X$ being observed as a function of $(Y,Z)$, i.e., $\pi_{Y,Z}(y,z)$. The values for the probability $\pi_{Y,Z}(y,z)$ are similar to those defined by $(W,Z)$. In fact the correlation between these values is `r round(cor(dat$myp_xz, dat$myp_yz), 2)`. Thus, while not the same these probability values are close.
+Additionally, we can plot the probability of $X$ being observed as a function of $(Y,Z)$, i.e., $\pi_{Y,Z}(y,z)$. The values for the probability $\pi_{Y,Z}(y,z)$ are similar to those defined by $(W,Z)$. In fact, the correlation between these values is `r round(cor(dat$myp_xz, dat$myp_yz), 2)`. Thus, while not the same these probability values are close.
 
 ```{R}
 # scatter plot for pi(y,z)
@@ -153,7 +153,7 @@ dat %>%
 
 ### Estimate parameters
 
-Now that we have generated the data, we will now estimate the linear regression parameters $\btheta$ and their corresponding standard error estimates. Before that, we will need to calculate some probabilities from a uniform distribution in order to misspecify the probability of $X$ being observed for the IPW, ACC, MACC and AIPW estimators . Estimates from one simulation can be obtained using the following code:
+Now that we have generated the data, we will estimate the linear regression parameters $\btheta$ and their corresponding standard error estimates. Before that, we will calculate some probabilities from a uniform distribution to misspecify the probability of $X$ being observed for the IPW, ACC, MACC, and AIPW estimators. Estimates from one simulation can be obtained using the following code:
 
 ```{R, eval = FALSE}
 tic()
@@ -246,7 +246,7 @@ Alternatively, we can use the function `simcalc()` to calculate one simulation. 
 
 -   `sim_i`= Scalar, this value sets the seed for the simulation.
 
--   `dep_censoring. = TRUE or FALSE`, if `FALSE` the partial correlation of (X,C) given Z is equal to zero. If `TRUE`, this partial correlation is not equal to zero.
+-   `dep_censoring. = TRUE or FALSE`, if `FALSE` the partial correlation of $(X,C)$ given $Z$ equals zero. If `TRUE`, this partial correlation is not equal to zero.
 
 ```{R, eval = FALSE}
 tic(); 
@@ -254,7 +254,7 @@ myresults = parallel::mclapply(1:3, function(x) simcalc(x, dep_censoring. = dep_
 toc()
 ```
 
-Instead of using `parallel::mclapply()`, one may also us `lapply()` to process the jobs. The only benefit of `parallel::mclapply()` is that the jobs are completed faster. What was done in the research paper is that each simulation was sent separately to the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/), where all jobs where submitted simultaneously. These results, were then saved and analyzed individually. We have included the simulation results in this repository. We now load these and replicate the results presented in manuscript.
+Instead of using `parallel::mclapply()`, one may also use `lapply()` to process the jobs. The only benefit of `parallel::mclapply()` is that the jobs are completed faster. What was done in the research paper is that each simulation was sent separately to the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/), where all jobs were submitted simultaneously. These results were then saved and analyzed individually. We have included the simulation results in this repository. We now load these and replicate the results presented in the manuscript.
 
 ### Simulation study results
 
@@ -319,7 +319,7 @@ myresults = rbind(myresults_a, myresults_b, myresults_c) %>%
     mutate(Method.c = factor(Method.c, levels = c("oracle", "cc", "ipw", "acc", "macc", "aipw","mle") ))
 ```
 
-After the jobs have been completed, we can compute the mean estimate of $\theta$ (i.e., $N^{-1}\sum_{i=1}^N\hat{\theta}_i$) and its percent bias (i.e., $N^{-1}\sum_{i=1}^N (\hat{\theta}_i-\theta_0)/\theta_0$); the empirical standard deviation of $\hat\theta$ across all simulations; and the empirical mean of the estimated standard error (i.e., $N^{-1}\sum_{i=1}^{N} \hat{\rm SE}_i$). Estimated standard errors were computed using the asymptotic variances derived in our theorems, with all expectations replaced by empirical averages. Lastly, we can calculate the empirical coverage of the estimated 95% confidence intervals.
+After the jobs have been completed, we can compute the mean estimate of $\theta$ (i.e., $N^{-1}\sum_{i=1}^N\hat{\theta}_i$) and its percent bias (i.e., $N^{-1}\sum_{i=1}^N (\hat{\theta}_i-\theta_0)/\theta_0$); the empirical standard deviation of $\hat\theta$ across all simulations; and the empirical mean of the estimated standard error (i.e., $N^{-1}\sum_{i=1}^{N} \hat{\rm SE}_i$). Estimated standard errors were computed using the asymptotic variances derived from our theorems, with all expectations replaced by empirical averages. Lastly, we can calculate the empirical coverage of the estimated 95% confidence intervals.
 
 ```{R}
 myresults = myresults %>% 
@@ -461,8 +461,8 @@ p1 <- myresults %>%
 
 p1
 
-# save plot  
-ggsave(filename = "independent-boxplots-combined.png",  width = 8, height = 9, dpi = 300, units = "in")
+## uncomment to save plot  
+# ggsave(filename = "independent-boxplots-combined.png",  width = 8, height = 9, dpi = 300, units = "in")
   
 p2 <- myresults_sehat %>%
   mutate(Parameter = factor(Parameter, levels = c("beta0", "beta2", "beta1"))) %>%
@@ -497,8 +497,8 @@ p2 <- myresults_sehat %>%
 
 p2
 
-# save plot
-ggsave(filename = "independent-efficiency.png",  width = 7, height = 9, dpi = 300, units = "in")
+## uncomment to save plot  
+# ggsave(filename = "independent-efficiency.png",  width = 7, height = 9, dpi = 300, units = "in")
 ```
 
 ## Dependent covariate right-censoring

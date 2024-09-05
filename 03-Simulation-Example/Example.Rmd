@@ -505,7 +505,7 @@ p2
 
 ### Generate data
 
-Just as in independent covariate-right censoring, we will now show how to simulate data under dependent covariate right-censoring using the function `data_mvn()`. Instead of specifying `dep_censoring = FALSE`, we will set it equal to `TRUE`. This will make the partial correlation of $(X,C)$ given $Z$ not equal to zero. In the following subsections, we replicate the same example as in independent covariate right-censoring, but for the dependent case. As before, the oracle mean and standard deviation of the distribution for $X$ are 0 and 1. For $C$, these values are 0 and 2.
+As in independent covariate-right censoring, we will now show how to simulate data under dependent covariate right-censoring using the function `data_mvn()`. Instead of specifying `dep_censoring = FALSE`, we will set it equal to `TRUE`. This will make the partial correlation of $(X,C)$ given $Z$ not equal zero. In the following subsections, we replicate the same analyses as in independent covariate right-censoring, but for the dependent case. As before, the oracle mean and standard deviation of the distribution for $X$ are 0 and 1. For $C$, these values are 0 and 2.
 
 ```{r}
 # generate data under dependent covariate right censoring
@@ -528,7 +528,7 @@ partial_cor = dat %>% select(X,C,Z) %>% ppcor::pcor()
 partial_cor$estimate %>% round(2)
 ```
 
-In both cases, the marginal and partial correlation between $(X,C)$ is non-zero. Therefore, our simulation scenario allow us to consider the case when $X$ and $C$ are not conditionally independent given $Z$. The censoring rate remains close to the 50% level (actual `r round(mean(dat$D), 2)`). The distribution of $(X,C)$ is as follows,
+In both cases, the marginal and partial correlations between $(X,C)$ are non-zero. Therefore, our simulation scenario allows us to consider the case when $X$ and $C$ are not conditionally independent given $Z$. The censoring rate remains close to the 50% level (actual: `r round(mean(dat$D), 2)`). The distribution of $(X,C)$ is as follows,
 
 ```{R fig.width = 10, fig.height = 5}
 # Set up the plotting area to have 1 row and 2 columns
@@ -550,7 +550,7 @@ legend("topright", legend = paste("Mean =", round(c_mean, 2), "\nSD =", round(c_
 par(mfrow = c(1, 1)) # Reset the plotting parameters to default
 ```
 
-Similar to the case of independent covariate right-censoring, we observe that the oracle probabilities, i.e., $\pi_{X,Z}(w,z)$, become smaller the larger $W$ (blue):
+Similar to independent covariate right-censoring, we observe that the probabilities $\pi_{X,Z}(w,z)$ become smaller the larger $W$.
 
 ```{R fig.width = 5, fig.height = 5}
 # Set up the plotting area to have 1 row and 2 columns
@@ -566,7 +566,7 @@ dat %>%
   theme(legend.position="bottom")
 ```
 
-The probability values defined by $(Y,Z)$ are similar to those defined by $(W,Z)$. In fact the correlation between these values remains high under dependent covariate right-censoring as well (`r round(cor(dat$myp_xz, dat$myp_yz), 2)`). Thus, while not the same these probability values are close.
+The probability values defined by $(Y,Z)$ are similar to those defined by $(W,Z)$. In fact the correlation between these values remains high under dependent covariate right-censoring as well (correlation: `r round(cor(dat$myp_xz, dat$myp_yz), 2)`). 
 
 ```{R fig.width = 5, fig.height = 5}
 # scatter plot for pi(y,z)
@@ -581,7 +581,7 @@ dat %>%
 
 ### Estimate parameters
 
-Now that we have generated the data, we will now estimate the linear regression parameters $\theta = (\beta_0, \beta_1, \beta_2, \sigma)$ and their corresponding standard error estimates. Estimates from one simulation can be obtained similarly using the following code. The only difference is that the "oracle" probability of observing $X$ and the estimators now account for the conditional dependence between $X$ and $C$ given $Z$:
+Now that we have generated the data, we will estimate the linear regression parameters $\theta = (\beta_0, \beta_1, \beta_2, \sigma)$ and their corresponding standard error estimates. Estimates from one simulation can be obtained similarly using the following code. The only difference is that the "oracle" probability of observing $X$ and the estimators now account for the conditional dependence between $X$ and $C$ given $Z$:
 
 ```{R, eval = FALSE}
 tic()
@@ -670,7 +670,7 @@ myreturn = rbind(myreturn, myreturn_mle)
 paged_table(myreturn)
 ```
 
-Alternatively, we can also use the function `simcalc()` to calculate one simulation. Instead of `dep_censoring. =FALSE`, we will set it equal to `TRUE` so that the partial correlation of (X,C) given Z is not equal to zero.
+Alternatively, we can use the function `simcalc()` to calculate the simualtions. Instead of `dep_censoring. =FALSE`, we will set it equal to `TRUE` so that the partial correlation of (X,C) given Z does not equal zero.
 
 ```{R, eval = FALSE}
 tic(); 
@@ -678,12 +678,12 @@ myresults = parallel::mclapply(1:3, function(x) simcalc(x, dep_censoring. = dep_
 toc()
 ```
 
-Similar as for the independent case, we computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/). These results, were then saved and included in this repository. We now load these and replicate the results presented in manuscript.
+Similar to the independent covariate right-censoring case, we computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/). These results were then saved and uploaded to this repository. We now load these and replicate the results presented in the manuscript.
 
 ### Simulation study results
 
 ```{R}
-# Load files from Dependent folder
+## Load files from Dependent folder
 # Sample size 100
 list_est <- list.files(path = paste0("../01-Data/Known nuisance parameters/Dependent/100-V3"), pattern = "est_results*", full.names = T)
 myresults_a = readmysims(list_est, 100)
@@ -861,8 +861,8 @@ p3 <- myresults %>%
 
 p3
 
-# save plot  
-ggsave(filename = "dependent-boxplots-combined.png",  width = 8, height = 9, dpi = 300, units = "in")
+## Uncomment to save plot  
+# ggsave(filename = "dependent-boxplots-combined.png",  width = 8, height = 9, dpi = 300, units = "in")
   
 p4 <- myresults_sehat %>%
   mutate(Parameter = factor(Parameter, levels = c("beta0", "beta2", "beta1"))) %>%
@@ -897,8 +897,8 @@ p4 <- myresults_sehat %>%
 
 p2
 
-# save plot
-ggsave(filename = "dependent-efficiency.png",  width = 7, height = 9, dpi = 300, units = "in")
+## Uncomment to save plot 
+# ggsave(filename = "dependent-efficiency.png",  width = 7, height = 9, dpi = 300, units = "in")
 ```
 
 # Estimated nuisance parameters
@@ -907,17 +907,17 @@ ggsave(filename = "dependent-efficiency.png",  width = 7, height = 9, dpi = 300,
 
 ### Generate data
 
-Up to now we have explained how to recreate the simulation results when the nuisance distributions are known. This means that,
+Up to this point, we have explained how to recreate the simulation results under the assumption that the nuisance distributions are known. Specifically:
 
 -   For the IPW estimator, we assumed that the parameters governing the probabilities $\pi_{X,Z}(w,z)$ were known.
 -   For the ACC, MACC, AIPW estimator, we assumed that the parameters governing the probabilities $\pi_{Y,Z}(y,z)$ and $\pi_{X,Z}(x,z)$, and the augmented components were known.
 -   For the MLE, we assumed that the distribution $f_{X|Z}(x,z)$ was assumed known.
 
-Yet, in practice, these distributions are typically not assumed known and must be estimated. Following our data simulation strategy, we estimate the parameters from these distributions by finding the set of parameters $\alpha = (\mu_{X,C|Z}, \sigma_{X|Z}, \sigma_{C|Z}, \sigma_{X,C|Z})$ that maximizes the conditional bivariate normal distribution of $f_{W,\Delta|Z}$. In other words, we find
+However, in practice, these distributions are typically not known and must be estimated. Using our data simulation strategy, we estimate the parameters of these distributions by finding the set of parameters $\alpha = (\mu_{X,C|Z}, \sigma_{X|Z}, \sigma_{C|Z}, \sigma_{X,C|Z})$ that maximizes the conditional bivariate normal distribution of $f_{W,\Delta|Z}$. In other words, we find
 
 $$\hat{\alpha} = \underset{\alpha}{\mathrm{argmax}} \sum_{i}^n\left\{\delta_i\log\int_{w_i}^{\infty}f_{C,X|Z}(c,x,z;\alpha)dc + (1-\delta_i)\log\int_{w_i}^{\infty}f_{C,X|Z}(c,x,z;\alpha) dx \right\}.$$
 
-As noted in the main paper, $\alpha$ is identifiable in our independent right-censored covariate setting. To estimate $\alpha$, we define a helper function that find the values of $\alpha$ that maximize the above expression using `optimx()`.
+To estimate $\alpha$, we define a helper function (as shown next) that finds the values of $\alpha$ that maximize the above expression using `optimx()`.
 
 ```{r fig.width = 5, fig.height = 5}
 # generate data under independent covariate right censoring
@@ -981,7 +981,7 @@ myalpha1 = unlist(myoptim1[1:6])
 myalpha1
 ```
 
-Using these estimates, we will compute (i) probability of $X$ being observed using $\pi_{X,Z}(w,z)$ and $\pi_{Y,Z}(y,z)$, (ii) define the density $f_{X|Z}$ to calculate the augmented component of the ACC, MACC and AIPW estimators, and (iii) define the density $f_{X|Z}$ for the MLE. To evaluate the fit of $\hat\alpha$ we compute the probabilities $\pi_{X,Z}(w,z)$ and plot them against the oracle values.
+Using $\hat\alpha$, we compute (i) probability of $X$ being observed using $\pi_{X,Z}(w,z) = \int_{w \leq c} f_{C|Z}(c,z) dc$ and $\pi_{Y,Z}(y,z) = int \pi_{X,Z}(w,z) f_{X|Y,Z}(x,y,z) dx$, (ii) define the density $f_{X|Z}$ to calculate the augmented component of the ACC, MACC and AIPW estimators, and (iii) define the density $f_{X|Z}$ for the MLE. To evaluate the fit of $\hat\alpha$ we compute the probabilities $\hat{\pi}_{X,Z}(w,z)$ and plot them against the oracle values $\pi_{X,Z}(w,z)$.
 
 ```{R}
 # calculate the probability of X being observed
@@ -1004,7 +1004,7 @@ dat %>%
   theme(legend.position="bottom")
 ```
 
-As shown in the plot above, the probability estimates for when $X$ is observed (i.e., observed) resemble the oracle probabilities. In fact the pearson correlation between the oracle and the estimated probabilities is equal to `r round(cor(dat$myp_xz_mle[dat$D==1], dat$myp_xz[dat$D==1]),4)`. We now investigate the linear fit of $X$ and the estimated $f_{X|Z}$ distribution.
+As shown in the plot above, the probability estimates for when $X$ is observed (i.e., blue points) strongly resemble the oracle probabilities. In fact, the Pearson correlation between the oracle and the estimated probabilities is equal to `r round(cor(dat$myp_xz_mle[dat$D==1], dat$myp_xz[dat$D==1]),4)`. We now investigate the linear fit of $\hat{f}_{X|Z}(x,z)$  and the oracle distribution $f_{X|Z}$.
 
 ```{R fig.width = 5, fig.height = 5}
 # oracle X|Z values
@@ -1021,7 +1021,7 @@ dat %>%
   ylim(-2,2) + xlim(-2,2)
 ```
 
-As plotted above, the estimated distribution of $X$ conditional on $Z$ closely matches the oracle values. We apply a similar approach to computing the probabilities $\pi_{Y,Z}(y,z)$. After calculating the integral $\pi_{Y,Z}(X,Z) = \int \pi_{X,Z}(x,z) f_{X|Y,Z}(x,y,z) dx$, where $\pi_{X,Z}(x,z)$ is the estimated probability from the previous step, we find that the the estimated probabilities are closely and linearly associated with the oracle probabilities, as shown below.
+As plotted above, the estimated distribution of $X$ conditional on $Z$ closely matches the oracle values. After calculating the integral $\pi_{Y,Z}(X,Z) = \int \pi_{X,Z}(x,z) f_{X|Y,Z}(x,y,z) dx$, where $\pi_{X,Z}(x,z)$ is the estimated probability from the previous step, we find that the estimated probabilities are closely and linearly associated with the oracle probabilities, as shown below.
 
 ```{R fig.width = 5, fig.height = 5}
 myp_yz.b = function(myalpha, data){
@@ -1065,6 +1065,8 @@ dat %>%
   labs(title = "Scatter plot of oracle vs. estimated probabilities \u03C0(y,z) ", x = "Estimated", y = "Oracle") +
   theme(legend.position="bottom")  
 ```
+
+Therefore, we conclude that the estimated nuisance parameters $\hat{\alpha}$ closely resemble the oracle values. These simulation results agree with our theoretical work showing that $\hat\balpha$ is a consistent estimator of $\alpha$.
 
 ### Estimate parameters
 

@@ -17,7 +17,7 @@ output:
 ```{r setup, include=FALSE}
 # Clear the environment
 rm(list = ls())
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 
 # Load custom functions
 source("../01-Data/helper_data.R") # Data generating function
@@ -40,7 +40,7 @@ library(tidyverse)
 
 # Introduction
 
-In this tutorial, you will learn how, under the presence of a right censored covariance, we can simulate data and estimate the linear regression parameters as discussed in the paper "**Establishing the Parallels and Differences Between Right-Censored and Missing Covariates"** found here [Link](google.com). More specifically, in this tutorial you will health how to use the `data_mvn()` function to generate data and estimate the parameters of interest using the complete case (CC), inverse probability weighting (IPW), maximum likelihood (MLE), augmented CC (ACC), modified ACC (MACC), or/and the augmented IPW (AIPW) estimator. The GitHub repository for this tutorial can be accessed at [GitHub](https://github.com/jesusepfvazquez/right-censored-covariates).
+In this tutorial, you will learn how, under the presence of a right-censored covariance, we can simulate data and estimate the linear regression parameters as discussed in the paper "**Establishing the Parallels and Differences Between Right-Censored and Missing Covariates"** found here [Link](google.com). More specifically, in this tutorial, you will health how to use the `data_mvn()` function to generate data and estimate the parameters of interest using the complete case (CC), inverse probability weighting (IPW), maximum likelihood (MLE), augmented CC (ACC), modified ACC (MACC), or/and the augmented IPW (AIPW) estimator. The GitHub repository for this tutorial can be accessed at [GitHub](https://github.com/jesusepfvazquez/right-censored-covariates).
 
 Throughout, we are interested in the linear regression model
 
@@ -48,7 +48,7 @@ $$
 y_i = \beta_0 + \beta_1 (A_i-X_i) + \beta_2 Z_i + \epsilon_i
 $$
 
-where $y_i$ represents the outcome, $A_i$ the current age, $X_i$ the age at diagnosis, $A_i - X_i$ the time to clinical diagnosis, $Z_i$ the fully observed covariate, and $\epsilon_i \sim N(0,\sigma^2)$ . The data also provides $W_i = min (X_i,C_i)$ where $C_i$ is the random right-censoring variable, and $W_i$ is the observed event time. The variable $D_i = I(X_i \leq C_i)$ is equal to $1$ if the observed event time is equal to age at clinical diagnosis, and $0$ if otherwise. The objective is to estimate The goal is to estimate $\theta = (\beta_0, \beta_1, \beta_2, \sigma)$ using the observed data $O = (Y,W,\Delta,Z)$. We refer the reader to the **Supplementary Material Section S.5** for the exact details of the data simulation process, as well as the main paper for more details of the estimators and their robustness and efficiency properties.
+where $y_i$ represents the outcome, $A_i$ the current age, $X_i$ the age at diagnosis, $A_i - X_i$ the time to clinical diagnosis, $Z_i$ the fully observed covariate, and $\epsilon_i \sim N(0,\sigma^2)$ . The data also provides $W_i = min (X_i,C_i)$ where $C_i$ is the random right-censoring variable, and $W_i$ is the observed event time. The variable $D_i = I(X_i \leq C_i)$ equals $1$ if the observed event time equals age at clinical diagnosis, and $0$ if otherwise. The objective is to estimate The goal is to estimate $\theta = (\beta_0, \beta_1, \beta_2, \sigma)$ using the observed data $O = (Y,W,\Delta,Z)$. Please refer to the **Supplementary Material Section S.5** for the exact details of the data simulation process and the main paper for more details of the estimators and their robustness and efficiency properties.
 
 This vignette is divided into two main sections, each with two subsections. First, we will guide you through the process when the nuisance parameters are known, covering both independent and dependent covariate right-censoring. We will then repeat the process for when the nuisance parameters need to be estimated. Throughout, we assume that $Y \perp C | X,Z$. The structure of this vignette is as follows:
 
@@ -70,10 +70,10 @@ This vignette is divided into two main sections, each with two subsections. Firs
 
 ### Generate data
 
-The `data_mvn()` function generates data from a trivariate normal distribution. The trivariate normal distribution is used so that we can generate data under independent or dependent covariate right-censoring. The inputs of the function are as follows,
+The `data_mvn()` function generates data from a trivariate normal distribution. The trivariate normal distribution is used to generate data under independent or dependent covariate right-censoring. The inputs of the function are as follows,
 
 -   `nSubjects = Integer`, this is the total number of observations
--   `dep_censoring = TRUE or FALSE`, if `FALSE` the partial correlation of (X,C) given Z is equal to zero. If `TRUE`, this partial correlation is not equal to zero.
+-   `dep_censoring = TRUE or FALSE`, if `FALSE` the partial correlation of $(X,C)$ given $Z$ equals zero. If `TRUE`, this partial correlation is not equal to zero.
 
 In the following example, we simulate a sample size of 1,000 under non-independent covariate right-censoring. As noted in the **Supplementary Material Section S.5** to the paper "**Establishing the Parallels and Differences Between Right-Censored and Missing Covariates"**, the oracle mean and standard deviation of the distribution for $X$ are 0 and 1. For $C$, these values are 0 and 2.
 
@@ -95,57 +95,57 @@ Under independent covariate right-censoring we assume that $X \perp C | Z$. We c
 marginal_cor = dat %>% select(X,C,Z) %>% cor() %>% round(2)
 marginal_cor
 
-# check partial correlation between (X,C) given Z
+# check the partial correlation between (X,C) given Z
 partial_cor = dat %>% select(X,C,Z) %>% ppcor::pcor() 
 partial_cor$estimate %>% round(2)
 ```
 
 As expected, the marginal correlation between $(X,C)$ was `r marginal_cor[2,1]`, but only `r round(partial_cor$estimate,2)[2,1]` when conditional on $Z$. This confirms that in our simulation setup, $X$ and $C$ are only independent conditionally on $Z$. Moreover, under this simulation scenario, the expected right-censoring rate is 50%, and in this particular simulation, the right-censoring rate is `r round(mean(dat$D), 2)`. The distribution of $(X,C)$ graphically illustrated below:
 
-```{R}
-# Set up the plotting area to have 1 row and 2 columns
-par(mfrow = c(1, 2))
-
-# Histogram and density for X
-hist(dat$X, probability = TRUE, main = "Histogram of X", xlab = "X")
-x_mean <- mean(dat$X)
-x_sd <- sd(dat$X)
-curve(dnorm(x, mean = x_mean, sd = x_sd), add = TRUE, col = "blue", lwd = 2)
-legend("topright", legend = paste("Mean =", round(x_mean, 2), "\nSD =", round(x_sd, 2)), bty = "n")
-
-# Histogram and density for C
-hist(dat$C, probability = TRUE, main = "Histogram of C", xlab = "C")
-c_mean <- mean(dat$C)
-c_sd <- sd(dat$C)
-curve(dnorm(x, mean = c_mean, sd = c_sd), add = TRUE, col = "red", lwd = 2)
-legend("topright", legend = paste("Mean =", round(c_mean, 2), "\nSD =", round(c_sd, 2)), bty = "n")
-par(mfrow = c(1, 1)) # Reset the plotting parameters to default
+```{R fig.width = 5, fig.height = 5}
+dat %>%
+  mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>%
+  ggplot(aes(x = X, y = C, colour = D)) + geom_point() +
+  theme_minimal() +
+  geom_abline(intercept = 0, slope = 1) +
+  # Shaded area above the diagonal line X = C
+  geom_polygon(data = data.frame(x = c(-5, -5, 5), y = c(-5, 5, 5)),
+               aes(x = x, y = y), fill = "#00BFC4", alpha = 0.1, inherit.aes = FALSE) + 
+  # Shaded area below the diagonal line X = C
+  geom_polygon(data = data.frame(x = c(-5, 5, 5), y = c(-5, -5, 5)),
+               aes(x = x, y = y), fill = "#F8766D", alpha = 0.1, inherit.aes = FALSE) +
+  # add annotations for mean and sd
+  annotate("text", x = 3, y = -4, 
+           label = paste0("Mean X: ", round(mean(dat$X), 2), "\nSD X: ", round(var(dat$X)^0.5, 2)), 
+           hjust = 0, size = 4, color = "black") +
+  annotate("text", x = -4.5, y = 4, 
+           label = paste0("Mean C: ", round(mean(dat$C), 2), "\nSD C: ", round(var(dat$C)^0.5, 2)), 
+           hjust = 0, size = 4, color = "black") +
+  ylim(-5, 5) + xlim(-5, 5) +
+  labs(title = "Scatterplot of X vs. C", x = "X", y = "C", colour = "") +
+  theme(legend.position = "bottom")
 ```
+The values above the diagonal line correspond to $X \leq C$, whiles values below the line correspond to $C < X$. The shaded blue area represents the cases where we observe the value of  X, indicating $C > X$. On the other hand, the red shaded area represent the right-censored observations where the observed values are those from $C$, indicating $C < X$. We also plot the oracle probability of observing $X$, defined by $\pi_{X,Z}(w,z)$. The probability values become smaller the larger $X$ is  since a larger value of $X$ corresponds to a higher probability that $X$ is censored (blue scatter plot). 
 
-In addition to these, we plot the oracle probability of observing $X$, defined by $\pi_{X,Z}(w,z)$. The probability values become smaller the larger $X$ is  since a larger value of $X$ correspond to a higher probability that $X$ is censored (blue scatter plot). 
-
-```{R}
-# Set up the plotting area to have 1 row and 2 columns
-par(mfrow = c(1, 1))
-
+```{R fig.width = 5, fig.height = 5}
 # scatter plot for pi(w,z)
 dat %>%
   mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>% 
-  ggplot(aes(x= W ,y=myp_xz, colour =D)) +
-  geom_point() +
+  ggplot(aes(x= W ,y=myp_xz, colour =D)) + geom_point() +
+  theme_minimal() +
   geom_smooth(method = "lm", se = FALSE) +
-  labs(title = "Scatter plot of \u03C0(w,z) vs. W", y = "\u03C0(w,z)", x = "W", colour = "") +
+  labs(title = "Scatter plot of \u03C0(w,z) vs. W", y = "\u03C0(w,z)", x = "W = min(X,C)", colour = "") +
   theme(legend.position="bottom")
 ```
 
-Additionally, we can plot the probability of $X$ being observed as a function of $(Y,Z)$, i.e., $\pi_{Y,Z}(y,z)$. The values for the probability $\pi_{Y,Z}(y,z)$ are similar to those defined by $(W,Z)$. In fact the correlation between these values is `r round(cor(dat$myp_xz, dat$myp_yz), 2)`. Thus, while not the same these probability values are close.
+Additionally, we can plot the probability of $X$ being observed as a function of $(Y,Z)$, i.e., $\pi_{Y,Z}(y,z)$. The values for the probability $\pi_{Y,Z}(y,z)$ are similar to those defined by $(W,Z)$. In fact, the correlation between these values is `r round(cor(dat$myp_xz, dat$myp_yz), 2)`. Thus, while not the same these probability values are close.
 
-```{R}
+```{R fig.width = 5, fig.height = 5}
 # scatter plot for pi(y,z)
 dat %>%
   mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>%
   ggplot(aes(x= myp_xz ,y=myp_yz, colour =D)) +
-  geom_point() +
+  geom_point() + theme_minimal() +
   geom_smooth(method = "lm", se = FALSE) +
   labs(title = "Scatter plot of \u03C0(w,z) vs. \u03C0(y,z)", y = "\u03C0(y,z)", x = "\u03C0(w,z)",  colour = "") +
   theme(legend.position="bottom")
@@ -153,7 +153,7 @@ dat %>%
 
 ### Estimate parameters
 
-Now that we have generated the data, we will now estimate the linear regression parameters $\btheta$ and their corresponding standard error estimates. Before that, we will need to calculate some probabilities from a uniform distribution in order to misspecify the probability of $X$ being observed for the IPW, ACC, MACC and AIPW estimators . Estimates from one simulation can be obtained using the following code:
+Now that we have generated the data, we will estimate the linear regression parameters $\btheta$ and their corresponding standard error estimates. Before that, we will calculate some probabilities from a uniform distribution to misspecify the probability of $X$ being observed for the IPW, ACC, MACC, and AIPW estimators. Estimates from one simulation can be obtained using the following code:
 
 ```{R, eval = FALSE}
 tic()
@@ -246,7 +246,7 @@ Alternatively, we can use the function `simcalc()` to calculate one simulation. 
 
 -   `sim_i`= Scalar, this value sets the seed for the simulation.
 
--   `dep_censoring. = TRUE or FALSE`, if `FALSE` the partial correlation of (X,C) given Z is equal to zero. If `TRUE`, this partial correlation is not equal to zero.
+-   `dep_censoring. = TRUE or FALSE`, if `FALSE` the partial correlation of $(X,C)$ given $Z$ equals zero. If `TRUE`, this partial correlation is not equal to zero.
 
 ```{R, eval = FALSE}
 tic(); 
@@ -254,7 +254,7 @@ myresults = parallel::mclapply(1:3, function(x) simcalc(x, dep_censoring. = dep_
 toc()
 ```
 
-Instead of using `parallel::mclapply()`, one may also us `lapply()` to process the jobs. The only benefit of `parallel::mclapply()` is that the jobs are completed faster. What was done in the research paper is that each simulation was sent separately to the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/), where all jobs where submitted simultaneously. These results, were then saved and analyzed individually. We have included the simulation results in this repository. We now load these and replicate the results presented in manuscript.
+Instead of using `parallel::mclapply()`, one may also use `lapply()` to process the jobs. The only benefit of `parallel::mclapply()` is that the jobs are completed faster. What was done in the research paper is that each simulation was sent separately to the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/), where all jobs were submitted simultaneously. These results were then saved and analyzed individually. We have included the simulation results in this repository. We now load these and replicate the results presented in the manuscript.
 
 ### Simulation study results
 
@@ -319,7 +319,7 @@ myresults = rbind(myresults_a, myresults_b, myresults_c) %>%
     mutate(Method.c = factor(Method.c, levels = c("oracle", "cc", "ipw", "acc", "macc", "aipw","mle") ))
 ```
 
-After the jobs have been completed, we can compute the mean estimate of $\theta$ (i.e., $N^{-1}\sum_{i=1}^N\hat{\theta}_i$) and its percent bias (i.e., $N^{-1}\sum_{i=1}^N (\hat{\theta}_i-\theta_0)/\theta_0$); the empirical standard deviation of $\hat\theta$ across all simulations; and the empirical mean of the estimated standard error (i.e., $N^{-1}\sum_{i=1}^{N} \hat{\rm SE}_i$). Estimated standard errors were computed using the asymptotic variances derived in our theorems, with all expectations replaced by empirical averages. Lastly, we can calculate the empirical coverage of the estimated 95% confidence intervals.
+After the jobs have been completed, we can compute the mean estimate of $\theta$ (i.e., $N^{-1}\sum_{i=1}^N\hat{\theta}_i$) and its percent bias (i.e., $N^{-1}\sum_{i=1}^N (\hat{\theta}_i-\theta_0)/\theta_0$); the empirical standard deviation of $\hat\theta$ across all simulations; and the empirical mean of the estimated standard error (i.e., $N^{-1}\sum_{i=1}^{N} \hat{\rm SE}_i$). Estimated standard errors were computed using the asymptotic variances derived from our theorems, with all expectations replaced by empirical averages. Lastly, we can calculate the empirical coverage of the estimated 95% confidence intervals.
 
 ```{R}
 myresults = myresults %>% 
@@ -461,8 +461,8 @@ p1 <- myresults %>%
 
 p1
 
-# save plot  
-ggsave(filename = "independent-boxplots-combined.png",  width = 8, height = 9, dpi = 300, units = "in")
+## uncomment to save plot  
+# ggsave(filename = "independent-boxplots-combined.png",  width = 8, height = 9, dpi = 300, units = "in")
   
 p2 <- myresults_sehat %>%
   mutate(Parameter = factor(Parameter, levels = c("beta0", "beta2", "beta1"))) %>%
@@ -497,15 +497,15 @@ p2 <- myresults_sehat %>%
 
 p2
 
-# save plot
-ggsave(filename = "independent-efficiency.png",  width = 7, height = 9, dpi = 300, units = "in")
+## Uncomment to save plot  
+# ggsave(filename = "independent-efficiency.png",  width = 7, height = 9, dpi = 300, units = "in")
 ```
 
 ## Dependent covariate right-censoring
 
 ### Generate data
 
-Just as in independent covariate-right censoring, we will now show how to simulate data under dependent covariate right-censoring using the function `data_mvn()`. Instead of specifying `dep_censoring = FALSE`, we will set it equal to `TRUE`. This will make the partial correlation of $(X,C)$ given $Z$ not equal to zero. In the following subsections, we replicate the same example as in independent covariate right-censoring, but for the dependent case. As before, the oracle mean and standard deviation of the distribution for $X$ are 0 and 1. For $C$, these values are 0 and 2.
+As in independent covariate-right censoring, we will now show how to simulate data under dependent covariate right-censoring using the function `data_mvn()`. Instead of specifying `dep_censoring = FALSE`, we will set it equal to `TRUE`. This will make the partial correlation of $(X,C)$ given $Z$ not equal zero. In the following subsections, we replicate the same analyses as in independent covariate right-censoring, but for the dependent case. As before, the oracle mean and standard deviation of the distribution for $X$ are 0 and 1. For $C$, these values are 0 and 2.
 
 ```{r}
 # generate data under dependent covariate right censoring
@@ -528,34 +528,35 @@ partial_cor = dat %>% select(X,C,Z) %>% ppcor::pcor()
 partial_cor$estimate %>% round(2)
 ```
 
-In both cases, the marginal and partial correlation between $(X,C)$ is non-zero. Therefore, our simulation scenario allow us to consider the case when $X$ and $C$ are not conditionally independent given $Z$. The censoring rate remains close to the 50% level (actual `r round(mean(dat$D), 2)`). The distribution of $(X,C)$ is as follows,
-
-```{R fig.width = 10, fig.height = 5}
-# Set up the plotting area to have 1 row and 2 columns
-par(mfrow = c(1, 2))
-
-# Histogram and density for X
-hist(dat$X, probability = TRUE, main = "Histogram of X", xlab = "X")
-x_mean <- mean(dat$X)
-x_sd <- sd(dat$X)
-curve(dnorm(x, mean = x_mean, sd = x_sd), add = TRUE, col = "blue", lwd = 2)
-legend("topright", legend = paste("Mean =", round(x_mean, 2), "\nSD =", round(x_sd, 2)), bty = "n")
-
-# Histogram and density for C
-hist(dat$C, probability = TRUE, main = "Histogram of C", xlab = "C")
-c_mean <- mean(dat$C)
-c_sd <- sd(dat$C)
-curve(dnorm(x, mean = c_mean, sd = c_sd), add = TRUE, col = "red", lwd = 2)
-legend("topright", legend = paste("Mean =", round(c_mean, 2), "\nSD =", round(c_sd, 2)), bty = "n")
-par(mfrow = c(1, 1)) # Reset the plotting parameters to default
-```
-
-Similar to the case of independent covariate right-censoring, we observe that the oracle probabilities, i.e., $\pi_{X,Z}(w,z)$, become smaller the larger $W$ (blue):
+In both cases, the marginal and partial correlations between $(X,C)$ are non-zero. Therefore, our simulation scenario allows us to consider the case when $X$ and $C$ are not conditionally independent given $Z$. The censoring rate remains close to the 50% level (actual: `r round(mean(dat$D), 2)`). The distribution of $(X,C)$ is as follows,
 
 ```{R fig.width = 5, fig.height = 5}
-# Set up the plotting area to have 1 row and 2 columns
-par(mfrow = c(1, 1))
+dat %>%
+  mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>%
+  ggplot(aes(x = X, y = C, colour = D)) + geom_point() +
+  theme_minimal() +
+  geom_abline(intercept = 0, slope = 1) +
+  # Shaded area above the diagonal line X = C
+  geom_polygon(data = data.frame(x = c(-5, -5, 5), y = c(-5, 5, 5)),
+               aes(x = x, y = y), fill = "#00BFC4", alpha = 0.1, inherit.aes = FALSE) + 
+  # Shaded area below the diagonal line X = C
+  geom_polygon(data = data.frame(x = c(-5, 5, 5), y = c(-5, -5, 5)),
+               aes(x = x, y = y), fill = "#F8766D", alpha = 0.1, inherit.aes = FALSE) +
+  # add annotations for mean and sd
+  annotate("text", x = 3, y = -4, 
+           label = paste0("Mean X: ", round(mean(dat$X), 2), "\nSD X: ", round(var(dat$X)^0.5, 2)), 
+           hjust = 0, size = 4, color = "black") +
+  annotate("text", x = -4.5, y = 4, 
+           label = paste0("Mean C: ", round(mean(dat$C), 2), "\nSD C: ", round(var(dat$C)^0.5, 2)), 
+           hjust = 0, size = 4, color = "black") +
+  ylim(-5, 5) + xlim(-5, 5) +
+  labs(title = "Scatterplot of X vs. C", x = "X", y = "C", colour = "") +
+  theme(legend.position = "bottom")
+```
 
+Similar to independent covariate right-censoring, we observe that the probabilities $\pi_{X,Z}(w,z)$ become smaller the larger $W$.
+
+```{R fig.width = 5, fig.height = 5}
 # scatter plot for pi(w,z)
 dat %>%
   mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>% 
@@ -566,7 +567,7 @@ dat %>%
   theme(legend.position="bottom")
 ```
 
-The probability values defined by $(Y,Z)$ are similar to those defined by $(W,Z)$. In fact the correlation between these values remains high under dependent covariate right-censoring as well (`r round(cor(dat$myp_xz, dat$myp_yz), 2)`). Thus, while not the same these probability values are close.
+The probability values defined by $(Y,Z)$ are similar to those defined by $(W,Z)$. In fact, the correlation between these values remains high under dependent covariate right-censoring as well (correlation: `r round(cor(dat$myp_xz, dat$myp_yz), 2)`). 
 
 ```{R fig.width = 5, fig.height = 5}
 # scatter plot for pi(y,z)
@@ -581,7 +582,7 @@ dat %>%
 
 ### Estimate parameters
 
-Now that we have generated the data, we will now estimate the linear regression parameters $\theta = (\beta_0, \beta_1, \beta_2, \sigma)$ and their corresponding standard error estimates. Estimates from one simulation can be obtained similarly using the following code. The only difference is that the "oracle" probability of observing $X$ and the estimators now account for the conditional dependence between $X$ and $C$ given $Z$:
+Now that we have generated the data, we will estimate the linear regression parameters $\theta = (\beta_0, \beta_1, \beta_2, \sigma)$ and their corresponding standard error estimates. Estimates from one simulation can be obtained similarly using the following code. The only difference is that the "oracle" probability of observing $X$ and the estimators now account for the conditional dependence between $X$ and $C$ given $Z$:
 
 ```{R, eval = FALSE}
 tic()
@@ -670,7 +671,7 @@ myreturn = rbind(myreturn, myreturn_mle)
 paged_table(myreturn)
 ```
 
-Alternatively, we can also use the function `simcalc()` to calculate one simulation. Instead of `dep_censoring. =FALSE`, we will set it equal to `TRUE` so that the partial correlation of (X,C) given Z is not equal to zero.
+Alternatively, we can use the function `simcalc()` to calculate the simualtions. Instead of `dep_censoring. =FALSE`, we will set it equal to `TRUE` so that the partial correlation of (X,C) given Z does not equal zero.
 
 ```{R, eval = FALSE}
 tic(); 
@@ -678,12 +679,12 @@ myresults = parallel::mclapply(1:3, function(x) simcalc(x, dep_censoring. = dep_
 toc()
 ```
 
-Similar as for the independent case, we computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/). These results, were then saved and included in this repository. We now load these and replicate the results presented in manuscript.
+Similar to the independent covariate right-censoring case, we computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/). These results were then saved and uploaded to this repository. We now load these and replicate the results presented in the manuscript.
 
 ### Simulation study results
 
 ```{R}
-# Load files from Dependent folder
+## Load files from Dependent folder
 # Sample size 100
 list_est <- list.files(path = paste0("../01-Data/Known nuisance parameters/Dependent/100-V3"), pattern = "est_results*", full.names = T)
 myresults_a = readmysims(list_est, 100)
@@ -861,8 +862,8 @@ p3 <- myresults %>%
 
 p3
 
-# save plot  
-ggsave(filename = "dependent-boxplots-combined.png",  width = 8, height = 9, dpi = 300, units = "in")
+## Uncomment to save plot  
+# ggsave(filename = "dependent-boxplots-combined.png",  width = 8, height = 9, dpi = 300, units = "in")
   
 p4 <- myresults_sehat %>%
   mutate(Parameter = factor(Parameter, levels = c("beta0", "beta2", "beta1"))) %>%
@@ -895,10 +896,10 @@ p4 <- myresults_sehat %>%
                                "#009E73", "#F0E442", "#0072B2", 
                                "#D55E00", "#CC79A7"))
 
-p2
+p4
 
-# save plot
-ggsave(filename = "dependent-efficiency.png",  width = 7, height = 9, dpi = 300, units = "in")
+## Uncomment to save plot 
+# ggsave(filename = "dependent-efficiency.png",  width = 7, height = 9, dpi = 300, units = "in")
 ```
 
 # Estimated nuisance parameters
@@ -907,17 +908,17 @@ ggsave(filename = "dependent-efficiency.png",  width = 7, height = 9, dpi = 300,
 
 ### Generate data
 
-Up to now we have explained how to recreate the simulation results when the nuisance distributions are known. This means that,
+Up to this point, we have explained how to recreate the simulation results under the assumption that the nuisance distributions are known. Specifically:
 
 -   For the IPW estimator, we assumed that the parameters governing the probabilities $\pi_{X,Z}(w,z)$ were known.
 -   For the ACC, MACC, AIPW estimator, we assumed that the parameters governing the probabilities $\pi_{Y,Z}(y,z)$ and $\pi_{X,Z}(x,z)$, and the augmented components were known.
 -   For the MLE, we assumed that the distribution $f_{X|Z}(x,z)$ was assumed known.
 
-Yet, in practice, these distributions are typically not assumed known and must be estimated. Following our data simulation strategy, we estimate the parameters from these distributions by finding the set of parameters $\alpha = (\mu_{X,C|Z}, \sigma_{X|Z}, \sigma_{C|Z}, \sigma_{X,C|Z})$ that maximizes the conditional bivariate normal distribution of $f_{W,\Delta|Z}$. In other words, we find
+However, in practice, these distributions are typically not known and must be estimated. Using our data simulation strategy, we estimate the parameters of these distributions by finding the set of parameters $\alpha = (\mu_{X,C|Z}, \sigma_{X|Z}, \sigma_{C|Z}, \sigma_{X,C|Z})$ that maximizes the conditional bivariate normal distribution of $f_{W,\Delta|Z}$. In other words, we find
 
 $$\hat{\alpha} = \underset{\alpha}{\mathrm{argmax}} \sum_{i}^n\left\{\delta_i\log\int_{w_i}^{\infty}f_{C,X|Z}(c,x,z;\alpha)dc + (1-\delta_i)\log\int_{w_i}^{\infty}f_{C,X|Z}(c,x,z;\alpha) dx \right\}.$$
 
-As noted in the main paper, $\alpha$ is identifiable in our independent right-censored covariate setting. To estimate $\alpha$, we define a helper function that find the values of $\alpha$ that maximize the above expression using `optimx()`.
+To estimate $\alpha$, we define a helper function (as shown next) that finds the values of $\alpha$ that maximize the above expression using `optimx()`.
 
 ```{r fig.width = 5, fig.height = 5}
 # generate data under independent covariate right censoring
@@ -981,7 +982,7 @@ myalpha1 = unlist(myoptim1[1:6])
 myalpha1
 ```
 
-Using these estimates, we will compute (i) probability of $X$ being observed using $\pi_{X,Z}(w,z)$ and $\pi_{Y,Z}(y,z)$, (ii) define the density $f_{X|Z}$ to calculate the augmented component of the ACC, MACC and AIPW estimators, and (iii) define the density $f_{X|Z}$ for the MLE. To evaluate the fit of $\hat\alpha$ we compute the probabilities $\pi_{X,Z}(w,z)$ and plot them against the oracle values.
+Using $\hat\alpha$, we compute (i) probability of $X$ being observed using $\pi_{X,Z}(w,z) = \int_{w \leq c} f_{C|Z}(c,z) dc$ and $\pi_{Y,Z}(y,z) = int \pi_{X,Z}(w,z) f_{X|Y,Z}(x,y,z) dx$, (ii) define the density $f_{X|Z}$ to calculate the augmented component of the ACC, MACC and AIPW estimators, and (iii) define the density $f_{X|Z}$ for the MLE. To evaluate the fit of $\hat\alpha$ we compute the probabilities $\hat{\pi}_{X,Z}(w,z)$ and plot them against the oracle values $\pi_{X,Z}(w,z)$.
 
 ```{R}
 # calculate the probability of X being observed
@@ -1004,7 +1005,7 @@ dat %>%
   theme(legend.position="bottom")
 ```
 
-As shown in the plot above, the probability estimates for when $X$ is observed (i.e., observed) resemble the oracle probabilities. In fact the pearson correlation between the oracle and the estimated probabilities is equal to `r round(cor(dat$myp_xz_mle[dat$D==1], dat$myp_xz[dat$D==1]),4)`. We now investigate the linear fit of $X$ and the estimated $f_{X|Z}$ distribution.
+As shown in the plot above, the probability estimates for when $X$ is observed (i.e., blue points) strongly resemble the oracle probabilities. In fact, the Pearson correlation between the oracle and the estimated probabilities when $X$ is observed (i.e., blue dots) is equal to `r round(cor(dat$myp_xz_mle[dat$D==1], dat$myp_xz[dat$D==1]),4)`. We now investigate the linear fit of $\hat{f}_{X|Z}(x,z)$  and the oracle distribution $f_{X|Z}$.
 
 ```{R fig.width = 5, fig.height = 5}
 # oracle X|Z values
@@ -1021,7 +1022,7 @@ dat %>%
   ylim(-2,2) + xlim(-2,2)
 ```
 
-As plotted above, the estimated distribution of $X$ conditional on $Z$ closely matches the oracle values. We apply a similar approach to computing the probabilities $\pi_{Y,Z}(y,z)$. After calculating the integral $\pi_{Y,Z}(X,Z) = \int \pi_{X,Z}(x,z) f_{X|Y,Z}(x,y,z) dx$, where $\pi_{X,Z}(x,z)$ is the estimated probability from the previous step, we find that the the estimated probabilities are closely and linearly associated with the oracle probabilities, as shown below.
+As plotted above, the estimated distribution of $X$ conditional on $Z$ closely matches the oracle values. After calculating the integral $\pi_{Y,Z}(X,Z) = \int \pi_{X,Z}(x,z) f_{X|Y,Z}(x,y,z) dx$, where $\pi_{X,Z}(x,z)$ is the estimated probability from the previous step, we find that the estimated probabilities are closely and linearly associated with the oracle probabilities, as shown below.
 
 ```{R fig.width = 5, fig.height = 5}
 myp_yz.b = function(myalpha, data){
@@ -1066,9 +1067,11 @@ dat %>%
   theme(legend.position="bottom")  
 ```
 
+Therefore, we conclude that the estimated nuisance parameters $\hat{\alpha}$ closely resemble the oracle values. These simulation results agree with our theoretical work showing that $\hat\balpha$ is a consistent estimator of $\alpha$.
+
 ### Estimate parameters
 
-Now that we have estimated the nuisance parameters, we will not compute $\theta$ using the estimated probability of observing $X$ and the the estimated density of $f_{X|Z}(x,z)$.
+Now that we have estimated the nuisance parameters, we will compute $\theta$ using the estimated probability of observing $X$ and the estimated density of $f_{X|Z}(x,z)$. Additionally, we compute the updated standard error estimated.
 
 ```{R include = TRUE}
 dat$myp_xz = dat$myp_xz_mle
@@ -1138,7 +1141,7 @@ paged_table(myreturn)
 
 ### Simulation study results
 
-Similarly, we computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/). These results, were then saved and uploaded to this repository. We now load these and replicate the results presented in paper.
+We computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/). These results were then saved and uploaded to this repository. We now load these and replicate the results presented in the paper.
 
 ```{R}
 # Load files from Dependent folder
@@ -1160,7 +1163,7 @@ myresults = rbind(myresults_a, myresults_b) %>%
              mutate(Method = factor(Method, levels = c("oracle", "cc", "naive", "ipw", "macc-lambda", "aipw-lambda", "mle")))
 ```
 
-After importing these, we can compute the mean estimate of $\theta$; the empirical standard deviation of $\hat\theta$ across all simulations; empirical mean of the estimated standard error (i.e., $N^{-1}\sum_{i=1}^{N} \hat{\rm SE}_i$); and the empirical coverage of the estimated 95% confidence intervals.
+After importing these, we can compute the mean estimate of $\theta$, the empirical standard deviation of $\hat\theta$, the empirical mean of the estimated standard error, and the empirical coverage of the estimated 95% confidence intervals.
 
 ```{R}
 myresults = myresults %>% 
@@ -1218,7 +1221,7 @@ myresults_coverage = myresults %>%
 myresults_coverage  %>% paged_table()
 ```
 
-We can also create a similar figure to those when we assumed that $\alpha$ was known,
+While not shown in the paper, we can also create a similar figure to those when we assumed that $\alpha$ was known,
 
 ```{R fig.width = 7, fig.height = 9}
 p5 <- myresults %>%
@@ -1251,8 +1254,8 @@ p5 <- myresults %>%
 
 p5
 
-# save plot  
-ggsave(filename = "dependent-boxplots-combined-estimated.png",  width = 8, height = 9, dpi = 300, units = "in")
+## Uncomment to save plot 
+# ggsave(filename = "dependent-boxplots-combined-estimated.png",  width = 8, height = 9, dpi = 300, units = "in")
 ```
 
 ## Dependent covariate right-censoring
@@ -1262,7 +1265,8 @@ ggsave(filename = "dependent-boxplots-combined-estimated.png",  width = 8, heigh
 To address the dependent covariate right-censoring problem, we adopt the data simulation scenario from Bartlette et al. (2024). However, we modify the simulation so that after calculating the data with missing $X$, we compute $C = X - beta\{exp(Z), 1\}$ for those observations with incomplete data. This leads to the probability of observing $X$ be modeled by the logistic model of the form,
 
 $$\pi_{Y,Z}(y,z) = \Pr(\Delta = 1 | Y=y, Z=z) = logit(\alpha_0 + \alpha_1y + \alpha_2 z).$$
-The function below can be used to generate the data.
+
+The function `data_mvn_bartlette()` is used to generate the data for this mechanism. The only input to this function is `nSubjects` which is equal to the number of observations. Next, we show how to generate the data using this function.
 
 ```{r fig.width = 5, fig.height = 5}
 # generate data under independent covariate right censoring
@@ -1273,7 +1277,7 @@ dat = data_mvn_bartlette(nSubjects = n)
 head(dat) %>% paged_table()
 ```
 
-The logistic regression estimates indicate that higher values of $Z$ and lower values of $y$ are associated with a higher probability of observing $X$.  The scatter plot shown below depicts this same relationship.
+We now estimate the logistic regression coefficients from the model above. The results suggest that higher values of  Z  and lower values of  Y  are associated with a higher probability of observing  X . The scatter plot below illustrates this relationship.
 
 ```{r fig.width = 5, fig.height = 5}
 glm(formula = D ~ y + Z, family = binomial(link = "logit"), data = dat)
@@ -1289,7 +1293,7 @@ dat %>%
 
 ### Estimate parameters
 
-We can generate 3000 data sets using the following code. Then we save it as `acc_example_stata.csv`. After the data is generated, we use the `augcc` command in STATA to compute the parameter estimates.
+We can generate 3000 data sets using the following code. Then we save it as `acc_example_stata.csv`. After the data is generated, we use the `augcc` command in STATA to compute the parameter estimates for the ACC estimator with $\Lambda$.
 
 ```{R eval = FALSE}
 #################################################################
@@ -1309,7 +1313,7 @@ dat = dat %>%
 write.csv(dat, "acc_example_stata.csv", row.names = FALSE, na = "")
 ```
 
-The following STATA commands were used to compute the parameter estimates for the regression model. The command estimates the probabilities $\pi_{Y,Z}(y,z)$ using logistic regression and uses these estimates to estimate the ACC estimator with $\Lambda$. This process was computed for each of the individual data sets generated.
+The following STATA code were used to compute the parameter estimates for the regression model. The command estimates the probabilities $\pi_{Y,Z}(y,z)$ using logistic regression and uses these estimates to estimate the ACC estimator with $\Lambda$. This process was computed for each of the individual data sets generated.
 
 ```         
 // stata do file to estimate parameters of interest
@@ -1360,7 +1364,7 @@ augcca z, y(y) x(xmiss) imps(imp1-imp30) pivars(z)
 
 ### Simulation study results
 
-Similarly, we computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/) and uploaded results to this repository. We load the simulation results and replicate the results presented in manuscript.
+We computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/) and uploaded results to this repository. We load the simulation results and replicate the results presented in the paper.
 
 ```{r warning = FALSE, message = FALSE}
 ## Misspecified model
@@ -1399,11 +1403,6 @@ myresults_yz$Method = "acc-yz"
 ## combine both models
 myresults = rbind(myresults_yz, myresults_z)
 colnames(myresults) = c("beta1.x", "beta2.x", "beta0.x", "beta1.y", "beta2.y", "beta0.y", "Method")
-```
-
-```{R}
-# print results
-head(myresults) %>% paged_table()
 ```
 
 ```{R}

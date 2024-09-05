@@ -17,7 +17,7 @@ output:
 ```{r setup, include=FALSE}
 # Clear the environment
 rm(list = ls())
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 
 # Load custom functions
 source("../01-Data/helper_data.R") # Data generating function
@@ -102,50 +102,50 @@ partial_cor$estimate %>% round(2)
 
 As expected, the marginal correlation between $(X,C)$ was `r marginal_cor[2,1]`, but only `r round(partial_cor$estimate,2)[2,1]` when conditional on $Z$. This confirms that in our simulation setup, $X$ and $C$ are only independent conditionally on $Z$. Moreover, under this simulation scenario, the expected right-censoring rate is 50%, and in this particular simulation, the right-censoring rate is `r round(mean(dat$D), 2)`. The distribution of $(X,C)$ graphically illustrated below:
 
-```{R}
-# Set up the plotting area to have 1 row and 2 columns
-par(mfrow = c(1, 2))
-
-# Histogram and density for X
-hist(dat$X, probability = TRUE, main = "Histogram of X", xlab = "X")
-x_mean <- mean(dat$X)
-x_sd <- sd(dat$X)
-curve(dnorm(x, mean = x_mean, sd = x_sd), add = TRUE, col = "blue", lwd = 2)
-legend("topright", legend = paste("Mean =", round(x_mean, 2), "\nSD =", round(x_sd, 2)), bty = "n")
-
-# Histogram and density for C
-hist(dat$C, probability = TRUE, main = "Histogram of C", xlab = "C")
-c_mean <- mean(dat$C)
-c_sd <- sd(dat$C)
-curve(dnorm(x, mean = c_mean, sd = c_sd), add = TRUE, col = "red", lwd = 2)
-legend("topright", legend = paste("Mean =", round(c_mean, 2), "\nSD =", round(c_sd, 2)), bty = "n")
-par(mfrow = c(1, 1)) # Reset the plotting parameters to default
+```{R fig.width = 5, fig.height = 5}
+dat %>%
+  mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>%
+  ggplot(aes(x = X, y = C, colour = D)) + geom_point() +
+  theme_minimal() +
+  geom_abline(intercept = 0, slope = 1) +
+  # Shaded area above the diagonal line X = C
+  geom_polygon(data = data.frame(x = c(-5, -5, 5), y = c(-5, 5, 5)),
+               aes(x = x, y = y), fill = "#00BFC4", alpha = 0.1, inherit.aes = FALSE) + 
+  # Shaded area below the diagonal line X = C
+  geom_polygon(data = data.frame(x = c(-5, 5, 5), y = c(-5, -5, 5)),
+               aes(x = x, y = y), fill = "#F8766D", alpha = 0.1, inherit.aes = FALSE) +
+  # add annotations for mean and sd
+  annotate("text", x = 3, y = -4, 
+           label = paste0("Mean X: ", round(mean(dat$X), 2), "\nSD X: ", round(var(dat$X)^0.5, 2)), 
+           hjust = 0, size = 4, color = "black") +
+  annotate("text", x = -4.5, y = 4, 
+           label = paste0("Mean C: ", round(mean(dat$C), 2), "\nSD C: ", round(var(dat$C)^0.5, 2)), 
+           hjust = 0, size = 4, color = "black") +
+  ylim(-5, 5) + xlim(-5, 5) +
+  labs(title = "Scatterplot of X vs. C", x = "X", y = "C", colour = "") +
+  theme(legend.position = "bottom")
 ```
+The values above the diagonal line correspond to $X \leq C$, whiles values below the line correspond to $C < X$. The shaded blue area represents the cases where we observe the value of  X, indicating $C > X$. On the other hand, the red shaded area represent the right-censored observations where the observed values are those from $C$, indicating $C < X$. We also plot the oracle probability of observing $X$, defined by $\pi_{X,Z}(w,z)$. The probability values become smaller the larger $X$ is  since a larger value of $X$ corresponds to a higher probability that $X$ is censored (blue scatter plot). 
 
-In addition to these, we plot the oracle probability of observing $X$, defined by $\pi_{X,Z}(w,z)$. The probability values become smaller the larger $X$ is  since a larger value of $X$ corresponds to a higher probability that $X$ is censored (blue scatter plot). 
-
-```{R}
-# Set up the plotting area to have 1 row and 2 columns
-par(mfrow = c(1, 1))
-
+```{R fig.width = 5, fig.height = 5}
 # scatter plot for pi(w,z)
 dat %>%
   mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>% 
-  ggplot(aes(x= W ,y=myp_xz, colour =D)) +
-  geom_point() +
+  ggplot(aes(x= W ,y=myp_xz, colour =D)) + geom_point() +
+  theme_minimal() +
   geom_smooth(method = "lm", se = FALSE) +
-  labs(title = "Scatter plot of \u03C0(w,z) vs. W", y = "\u03C0(w,z)", x = "W", colour = "") +
+  labs(title = "Scatter plot of \u03C0(w,z) vs. W", y = "\u03C0(w,z)", x = "W = min(X,C)", colour = "") +
   theme(legend.position="bottom")
 ```
 
 Additionally, we can plot the probability of $X$ being observed as a function of $(Y,Z)$, i.e., $\pi_{Y,Z}(y,z)$. The values for the probability $\pi_{Y,Z}(y,z)$ are similar to those defined by $(W,Z)$. In fact, the correlation between these values is `r round(cor(dat$myp_xz, dat$myp_yz), 2)`. Thus, while not the same these probability values are close.
 
-```{R}
+```{R fig.width = 5, fig.height = 5}
 # scatter plot for pi(y,z)
 dat %>%
   mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>%
   ggplot(aes(x= myp_xz ,y=myp_yz, colour =D)) +
-  geom_point() +
+  geom_point() + theme_minimal() +
   geom_smooth(method = "lm", se = FALSE) +
   labs(title = "Scatter plot of \u03C0(w,z) vs. \u03C0(y,z)", y = "\u03C0(y,z)", x = "\u03C0(w,z)",  colour = "") +
   theme(legend.position="bottom")
@@ -497,7 +497,7 @@ p2 <- myresults_sehat %>%
 
 p2
 
-## uncomment to save plot  
+## Uncomment to save plot  
 # ggsave(filename = "independent-efficiency.png",  width = 7, height = 9, dpi = 300, units = "in")
 ```
 
@@ -530,32 +530,33 @@ partial_cor$estimate %>% round(2)
 
 In both cases, the marginal and partial correlations between $(X,C)$ are non-zero. Therefore, our simulation scenario allows us to consider the case when $X$ and $C$ are not conditionally independent given $Z$. The censoring rate remains close to the 50% level (actual: `r round(mean(dat$D), 2)`). The distribution of $(X,C)$ is as follows,
 
-```{R fig.width = 10, fig.height = 5}
-# Set up the plotting area to have 1 row and 2 columns
-par(mfrow = c(1, 2))
-
-# Histogram and density for X
-hist(dat$X, probability = TRUE, main = "Histogram of X", xlab = "X")
-x_mean <- mean(dat$X)
-x_sd <- sd(dat$X)
-curve(dnorm(x, mean = x_mean, sd = x_sd), add = TRUE, col = "blue", lwd = 2)
-legend("topright", legend = paste("Mean =", round(x_mean, 2), "\nSD =", round(x_sd, 2)), bty = "n")
-
-# Histogram and density for C
-hist(dat$C, probability = TRUE, main = "Histogram of C", xlab = "C")
-c_mean <- mean(dat$C)
-c_sd <- sd(dat$C)
-curve(dnorm(x, mean = c_mean, sd = c_sd), add = TRUE, col = "red", lwd = 2)
-legend("topright", legend = paste("Mean =", round(c_mean, 2), "\nSD =", round(c_sd, 2)), bty = "n")
-par(mfrow = c(1, 1)) # Reset the plotting parameters to default
+```{R fig.width = 5, fig.height = 5}
+dat %>%
+  mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>%
+  ggplot(aes(x = X, y = C, colour = D)) + geom_point() +
+  theme_minimal() +
+  geom_abline(intercept = 0, slope = 1) +
+  # Shaded area above the diagonal line X = C
+  geom_polygon(data = data.frame(x = c(-5, -5, 5), y = c(-5, 5, 5)),
+               aes(x = x, y = y), fill = "#00BFC4", alpha = 0.1, inherit.aes = FALSE) + 
+  # Shaded area below the diagonal line X = C
+  geom_polygon(data = data.frame(x = c(-5, 5, 5), y = c(-5, -5, 5)),
+               aes(x = x, y = y), fill = "#F8766D", alpha = 0.1, inherit.aes = FALSE) +
+  # add annotations for mean and sd
+  annotate("text", x = 3, y = -4, 
+           label = paste0("Mean X: ", round(mean(dat$X), 2), "\nSD X: ", round(var(dat$X)^0.5, 2)), 
+           hjust = 0, size = 4, color = "black") +
+  annotate("text", x = -4.5, y = 4, 
+           label = paste0("Mean C: ", round(mean(dat$C), 2), "\nSD C: ", round(var(dat$C)^0.5, 2)), 
+           hjust = 0, size = 4, color = "black") +
+  ylim(-5, 5) + xlim(-5, 5) +
+  labs(title = "Scatterplot of X vs. C", x = "X", y = "C", colour = "") +
+  theme(legend.position = "bottom")
 ```
 
 Similar to independent covariate right-censoring, we observe that the probabilities $\pi_{X,Z}(w,z)$ become smaller the larger $W$.
 
 ```{R fig.width = 5, fig.height = 5}
-# Set up the plotting area to have 1 row and 2 columns
-par(mfrow = c(1, 1))
-
 # scatter plot for pi(w,z)
 dat %>%
   mutate(D = factor(D, levels = c("0", "1"), labels = c("Right-censored", "Observed"))) %>% 
@@ -895,7 +896,7 @@ p4 <- myresults_sehat %>%
                                "#009E73", "#F0E442", "#0072B2", 
                                "#D55E00", "#CC79A7"))
 
-p2
+p4
 
 ## Uncomment to save plot 
 # ggsave(filename = "dependent-efficiency.png",  width = 7, height = 9, dpi = 300, units = "in")

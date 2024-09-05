@@ -80,7 +80,7 @@ In the following example, we simulate a sample size of 1,000 under non-independe
 ```{R}
 # generate data under independent covariate right censoring
 set.seed(0)
-n=500
+n=1000
 dep_censoring. = FALSE
 dat = data_mvn(nSubjects = n, dep_censoring = dep_censoring.)
 
@@ -1362,7 +1362,7 @@ augcca z, y(y) x(xmiss) imps(imp1-imp30) pivars(z)
 
 Similarly, we computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/) and uploaded results to this repository. We load the simulation results and replicate the results presented in manuscript.
 
-```{r echo = T, results = 'hide'}
+```{r warning = FALSE, message = FALSE}
 ## Misspecified model
 mypath = paste0("../01-Data/Estimated nuisance parameters/Dependent/1000-ACC-STATA")
 list_est <- list.files(path = mypath, pattern = "augacc_z_mysim*", full.names = T)

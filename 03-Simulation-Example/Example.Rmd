@@ -566,7 +566,7 @@ dat %>%
   theme(legend.position="bottom")
 ```
 
-The probability values defined by $(Y,Z)$ are similar to those defined by $(W,Z)$. In fact the correlation between these values remains high under dependent covariate right-censoring as well (correlation: `r round(cor(dat$myp_xz, dat$myp_yz), 2)`). 
+The probability values defined by $(Y,Z)$ are similar to those defined by $(W,Z)$. In fact, the correlation between these values remains high under dependent covariate right-censoring as well (correlation: `r round(cor(dat$myp_xz, dat$myp_yz), 2)`). 
 
 ```{R fig.width = 5, fig.height = 5}
 # scatter plot for pi(y,z)
@@ -1004,7 +1004,7 @@ dat %>%
   theme(legend.position="bottom")
 ```
 
-As shown in the plot above, the probability estimates for when $X$ is observed (i.e., blue points) strongly resemble the oracle probabilities. In fact, the Pearson correlation between the oracle and the estimated probabilities is equal to `r round(cor(dat$myp_xz_mle[dat$D==1], dat$myp_xz[dat$D==1]),4)`. We now investigate the linear fit of $\hat{f}_{X|Z}(x,z)$  and the oracle distribution $f_{X|Z}$.
+As shown in the plot above, the probability estimates for when $X$ is observed (i.e., blue points) strongly resemble the oracle probabilities. In fact, the Pearson correlation between the oracle and the estimated probabilities when $X$ is observed (i.e., blue dots) is equal to `r round(cor(dat$myp_xz_mle[dat$D==1], dat$myp_xz[dat$D==1]),4)`. We now investigate the linear fit of $\hat{f}_{X|Z}(x,z)$  and the oracle distribution $f_{X|Z}$.
 
 ```{R fig.width = 5, fig.height = 5}
 # oracle X|Z values
@@ -1070,7 +1070,7 @@ Therefore, we conclude that the estimated nuisance parameters $\hat{\alpha}$ clo
 
 ### Estimate parameters
 
-Now that we have estimated the nuisance parameters, we will not compute $\theta$ using the estimated probability of observing $X$ and the the estimated density of $f_{X|Z}(x,z)$.
+Now that we have estimated the nuisance parameters, we will compute $\theta$ using the estimated probability of observing $X$ and the estimated density of $f_{X|Z}(x,z)$. Additionally, we compute the updated standard error estimated.
 
 ```{R include = TRUE}
 dat$myp_xz = dat$myp_xz_mle
@@ -1140,7 +1140,7 @@ paged_table(myreturn)
 
 ### Simulation study results
 
-Similarly, we computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/). These results, were then saved and uploaded to this repository. We now load these and replicate the results presented in paper.
+We computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/). These results were then saved and uploaded to this repository. We now load these and replicate the results presented in the paper.
 
 ```{R}
 # Load files from Dependent folder
@@ -1162,7 +1162,7 @@ myresults = rbind(myresults_a, myresults_b) %>%
              mutate(Method = factor(Method, levels = c("oracle", "cc", "naive", "ipw", "macc-lambda", "aipw-lambda", "mle")))
 ```
 
-After importing these, we can compute the mean estimate of $\theta$; the empirical standard deviation of $\hat\theta$ across all simulations; empirical mean of the estimated standard error (i.e., $N^{-1}\sum_{i=1}^{N} \hat{\rm SE}_i$); and the empirical coverage of the estimated 95% confidence intervals.
+After importing these, we can compute the mean estimate of $\theta$, the empirical standard deviation of $\hat\theta$, the empirical mean of the estimated standard error, and the empirical coverage of the estimated 95% confidence intervals.
 
 ```{R}
 myresults = myresults %>% 
@@ -1220,7 +1220,7 @@ myresults_coverage = myresults %>%
 myresults_coverage  %>% paged_table()
 ```
 
-We can also create a similar figure to those when we assumed that $\alpha$ was known,
+While not shown in the paper, we can also create a similar figure to those when we assumed that $\alpha$ was known,
 
 ```{R fig.width = 7, fig.height = 9}
 p5 <- myresults %>%
@@ -1253,8 +1253,8 @@ p5 <- myresults %>%
 
 p5
 
-# save plot  
-ggsave(filename = "dependent-boxplots-combined-estimated.png",  width = 8, height = 9, dpi = 300, units = "in")
+## Uncomment to save plot 
+# ggsave(filename = "dependent-boxplots-combined-estimated.png",  width = 8, height = 9, dpi = 300, units = "in")
 ```
 
 ## Dependent covariate right-censoring
@@ -1264,7 +1264,8 @@ ggsave(filename = "dependent-boxplots-combined-estimated.png",  width = 8, heigh
 To address the dependent covariate right-censoring problem, we adopt the data simulation scenario from Bartlette et al. (2024). However, we modify the simulation so that after calculating the data with missing $X$, we compute $C = X - beta\{exp(Z), 1\}$ for those observations with incomplete data. This leads to the probability of observing $X$ be modeled by the logistic model of the form,
 
 $$\pi_{Y,Z}(y,z) = \Pr(\Delta = 1 | Y=y, Z=z) = logit(\alpha_0 + \alpha_1y + \alpha_2 z).$$
-The function below can be used to generate the data.
+
+The function `data_mvn_bartlette()` is used to generate the data for this mechanism. The only input to this function is `nSubjects` which is equal to the number of observations. Next, we show how to generate the data using this function.
 
 ```{r fig.width = 5, fig.height = 5}
 # generate data under independent covariate right censoring
@@ -1275,7 +1276,7 @@ dat = data_mvn_bartlette(nSubjects = n)
 head(dat) %>% paged_table()
 ```
 
-The logistic regression estimates indicate that higher values of $Z$ and lower values of $y$ are associated with a higher probability of observing $X$.  The scatter plot shown below depicts this same relationship.
+We now estimate the logistic regression coefficients from the model above. The results suggest that higher values of  Z  and lower values of  Y  are associated with a higher probability of observing  X . The scatter plot below illustrates this relationship.
 
 ```{r fig.width = 5, fig.height = 5}
 glm(formula = D ~ y + Z, family = binomial(link = "logit"), data = dat)
@@ -1291,7 +1292,7 @@ dat %>%
 
 ### Estimate parameters
 
-We can generate 3000 data sets using the following code. Then we save it as `acc_example_stata.csv`. After the data is generated, we use the `augcc` command in STATA to compute the parameter estimates.
+We can generate 3000 data sets using the following code. Then we save it as `acc_example_stata.csv`. After the data is generated, we use the `augcc` command in STATA to compute the parameter estimates for the ACC estimator with $\Lambda$.
 
 ```{R eval = FALSE}
 #################################################################
@@ -1311,7 +1312,7 @@ dat = dat %>%
 write.csv(dat, "acc_example_stata.csv", row.names = FALSE, na = "")
 ```
 
-The following STATA commands were used to compute the parameter estimates for the regression model. The command estimates the probabilities $\pi_{Y,Z}(y,z)$ using logistic regression and uses these estimates to estimate the ACC estimator with $\Lambda$. This process was computed for each of the individual data sets generated.
+The following STATA code were used to compute the parameter estimates for the regression model. The command estimates the probabilities $\pi_{Y,Z}(y,z)$ using logistic regression and uses these estimates to estimate the ACC estimator with $\Lambda$. This process was computed for each of the individual data sets generated.
 
 ```         
 // stata do file to estimate parameters of interest
@@ -1362,7 +1363,7 @@ augcca z, y(y) x(xmiss) imps(imp1-imp30) pivars(z)
 
 ### Simulation study results
 
-Similarly, we computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/) and uploaded results to this repository. We load the simulation results and replicate the results presented in manuscript.
+We computed all simulations using the [UNC Longleaf cluster](https://help.rc.unc.edu/longleaf-cluster/) and uploaded results to this repository. We load the simulation results and replicate the results presented in the paper.
 
 ```{r warning = FALSE, message = FALSE}
 ## Misspecified model
@@ -1401,11 +1402,6 @@ myresults_yz$Method = "acc-yz"
 ## combine both models
 myresults = rbind(myresults_yz, myresults_z)
 colnames(myresults) = c("beta1.x", "beta2.x", "beta0.x", "beta1.y", "beta2.y", "beta0.y", "Method")
-```
-
-```{R}
-# print results
-head(myresults) %>% paged_table()
 ```
 
 ```{R}

@@ -2,7 +2,7 @@
 title: "Establishing the Parallels and Difference between Right-Censored and Missing Covariates"
 subtitle: "Simulation Tutorial"
 author: "Jesus E. Vazquez"
-date: "`r Sys.Date()`"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document: 
     toc: yes
@@ -40,7 +40,7 @@ library(tidyverse)
 
 # Introduction
 
-In this tutorial, you will learn how, under the presence of a right censored covariance, we can simulate data and estimate the linear regression parameters as discussed in the paper "**Establishing the Parallels and Differences Between Right-Censored and Missing Covariates"** found here [Link](google.com). More specifically, in this tutorial you will health how to use the `data_mvn()` function to generate data and estimate the parameters of interest using the complete case (CC), inverse probability weighting (IPW), maximum likelihood (MLE), augmented CC (ACC), modified ACC (MACC), or/and the augmented IPW (AIPW) estimator.
+In this tutorial, you will learn how, under the presence of a right censored covariance, we can simulate data and estimate the linear regression parameters as discussed in the paper "**Establishing the Parallels and Differences Between Right-Censored and Missing Covariates"** found here [Link](google.com). More specifically, in this tutorial you will health how to use the `data_mvn()` function to generate data and estimate the parameters of interest using the complete case (CC), inverse probability weighting (IPW), maximum likelihood (MLE), augmented CC (ACC), modified ACC (MACC), or/and the augmented IPW (AIPW) estimator. The GitHub repository for this tutorial can be accessed at [GitHub](https://github.com/jesusepfvazquez/right-censored-covariates).
 
 Throughout, we are interested in the linear regression model
 

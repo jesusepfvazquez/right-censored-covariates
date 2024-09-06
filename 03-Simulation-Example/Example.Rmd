@@ -359,7 +359,7 @@ myresults_se = myresults %>%
   summarise_all(function(x) mean(as.numeric(x)*100) %>% round(2))
 myresults_se  %>% paged_table()
 
-# empirical SE
+# empirical SD
 myresults_sehat = myresults %>%
   dplyr::select(Method,n,beta0.x, beta1.x, beta2.x, sigma.x) %>%
   group_by(Method,n) %>%
@@ -381,7 +381,7 @@ We can also recreate the figures, as presented in the **Supplementary Material S
 
 ```{R fig.width = 7, fig.height = 9}
 ## efficiency plots
-# empirical SE
+# empirical SD
 cc_sehat <- myresults %>%
   subset(Method %in% c("cc")) %>%
   dplyr::select(Method, n, beta0.x, beta1.x, beta2.x) %>%
@@ -398,7 +398,7 @@ aug_sehat = myresults %>%
   
 emp_sehat = left_join(aug_sehat, cc_sehat, by = c("n", "Parameter")) %>%
   mutate(myratio = se_aug/se_cc) %>%
-  mutate(type = "Empirical SE")
+  mutate(type = "Empirical SD")
 
 
 
@@ -465,6 +465,7 @@ p1
 # ggsave(filename = "independent-boxplots-combined.png",  width = 8, height = 9, dpi = 300, units = "in")
   
 p2 <- myresults_sehat %>%
+  mutate(type = factor(type, levels = c("Mean SE", "Empirical SD"))) %>%
   mutate(Parameter = factor(Parameter, levels = c("beta0", "beta2", "beta1"))) %>%
   ggplot(aes(x=n, y=myratio, color=Method.x)) +
   geom_point(size=2) +
@@ -478,10 +479,10 @@ p2 <- myresults_sehat %>%
                                 type = c("Emprical SE", "Mean SE"))) +  # or any other appropriate label for `type`
   theme_bw() +
   theme(legend.position = "bottom") +
-  labs(title = "Efficiency comparative of estimators with the CC estimator for \nindependent covariate right-censoring",
-       y = expression("Efficiency Ratio (%) = " * SE[Method] / SE[CC]), 
-       color = "Estimator", 
-       x = "Sample size (n)") +
+labs(title = "Efficiency comparative of estimators with the CC estimator for \nindependent covariate right-censoring",
+     y = expression("Efficiency Ratio (%) = " * SE[Estimator]/SE[CC] * " or " * SD[Estimator]/SD[CC]), 
+     color = "Estimator", 
+     x = "Sample size (n)") +
   scale_y_continuous(labels = scales::percent_format()) +
   scale_x_continuous(breaks = unique(myresults_sehat$n)) +
   guides(color = guide_legend(nrow = 2)) +

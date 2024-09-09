@@ -1,7 +1,7 @@
 ---
 title: "Establishing the Parallels and Difference between Right-Censored and Missing Covariates"
 subtitle: "Simulation Tutorial"
-author: "Jesus E. Vazquez"
+author: "Jesus E. Vazquez and Tanya P. Garcia"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document: 
@@ -115,12 +115,12 @@ dat %>%
   geom_polygon(data = data.frame(x = c(-5, 5, 5), y = c(-5, -5, 5)),
                aes(x = x, y = y), fill = "#F8766D", alpha = 0.1, inherit.aes = FALSE) +
   # add annotations for mean and sd
-  annotate("text", x = 3, y = -4, 
-           label = paste0("Mean X: ", round(mean(dat$X), 2), "\nSD X: ", round(var(dat$X)^0.5, 2)), 
-           hjust = 0, size = 4, color = "black") +
-  annotate("text", x = -4.5, y = 4, 
-           label = paste0("Mean C: ", round(mean(dat$C), 2), "\nSD C: ", round(var(dat$C)^0.5, 2)), 
-           hjust = 0, size = 4, color = "black") +
+  # annotate("text", x = 3, y = -4, 
+  #          label = paste0("Mean X: ", round(mean(dat$X), 2), "\nSD X: ", round(var(dat$X)^0.5, 2)), 
+  #          hjust = 0, size = 4, color = "black") +
+  # annotate("text", x = -4.5, y = 4, 
+  #          label = paste0("Mean C: ", round(mean(dat$C), 2), "\nSD C: ", round(var(dat$C)^0.5, 2)), 
+  #          hjust = 0, size = 4, color = "black") +
   ylim(-5, 5) + xlim(-5, 5) +
   labs(title = "Scatterplot of X vs. C", x = "X", y = "C", colour = "") +
   theme(legend.position = "bottom")
@@ -500,6 +500,40 @@ p2
 
 ## Uncomment to save plot  
 # ggsave(filename = "independent-efficiency.png",  width = 7, height = 9, dpi = 300, units = "in")
+```
+
+```{R echo = FALSE, include = FALSE}
+p <- myresults %>%
+  subset(Method %in% c("cc","acc-lambda", "acc-lambda-w") ) %>%
+  select(Method, Method.c, beta0.x, beta1.x, beta2.x, n) %>%
+  reshape2::melt(id.vars = c("Method", "Method.c", "n"), variable.name = c("Parameter")) %>%
+  mutate(Parameter = factor(Parameter, levels = c("beta0.x", "beta2.x", "beta1.x"))) %>%
+  subset(Method != "mle-w" & n =="1000") %>%
+  mutate(Method = factor(Method, labels = c("",
+                                            "correct \u03C0(y,z)", "incorrect \u03C0(y,z)"))) %>%
+  ggplot(aes(y=value, x=Method, fill=Method.c)) +
+  geom_boxplot(outlier.color = "black", outlier.size = 0.2, position=position_dodge(.9)) +
+  stat_summary(fun=mean, colour="white", geom="point", shape=18, size=2, position=position_dodge(.9)) +
+  facet_grid(scales = "free",
+             #cols = vars(n), 
+             rows = vars(Parameter), 
+             labeller = labeller(Parameter = c(beta0.x = "Intercept: \u03B2=1", 
+                                               beta2.x = "A-X: \u03B2=3", 
+                                               beta1.x = "Z: \u03B2=2"), 
+                                type = c("Emprical SE", "Mean SE"))) +  # or any other appropriate label for `type`
+  geom_hline(data = . %>% filter(Parameter == "beta0.x"), aes(yintercept = 1), linetype = "dashed", color = "red") +
+  geom_hline(data = . %>% filter(Parameter == "beta2.x"), aes(yintercept = 3), linetype = "dashed", color = "red") +
+  geom_hline(data = . %>% filter(Parameter == "beta1.x"), aes(yintercept = 2), linetype = "dashed", color = "red") +
+  theme_bw() + theme(legend.position="bottom") +
+  theme(axis.text.x = element_text(angle = 0, vjust = 1, hjust=1, size = 10),
+        legend.text.align = 0,
+        axis.text.y = element_text(size=12)) +
+  guides(fill=guide_legend(nrow=1)) +
+  labs(x = "", y = TeX("Estimate"), fill = "Estimator", title = "Distribution of simulation results under independent covariate right-censoring") +
+  scale_fill_manual(labels = c("CC", "ACC"), 
+                    values = c("#000000","#56B4E9")) 
+
+p
 ```
 
 ## Dependent covariate right-censoring

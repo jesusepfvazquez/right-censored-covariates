@@ -1,8 +1,8 @@
 ---
 title: "Establishing the Parallels and Difference between Right-Censored and Missing Covariates"
 subtitle: "Simulation Tutorial"
-author: "Jesus E. Vazquez and Tanya P. Garcia"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
+#author: "Jesus E. Vazquez and Tanya P. Garcia"
+#date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document: 
     toc: yes
